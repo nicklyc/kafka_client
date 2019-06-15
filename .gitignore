@@ -9,3 +9,15 @@
 .settings*
 .project
 /.idea/*
+*/wrapper/*
+/learn2/.idea/libraries
+/learn2/.idea
+*.iml
+*HELP.md
+*mvnw.cmd
+*mvnw
+*maven-wrapper.jar
+*maven-wrapper.properties
+*.jar
+/learn1/.mvn/wrapper/*.jar
+/learn1/.mvn/wrapper
