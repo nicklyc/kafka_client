@@ -35,6 +35,12 @@
             <version>2.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+            <version>5.0.0-RC1</version>
+        </dependency>
+
         <!--log4j-->
         <dependency>
             <groupId>org.springframework.boot</groupId>
