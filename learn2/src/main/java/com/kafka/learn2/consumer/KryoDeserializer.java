@@ -26,19 +26,16 @@ public class KryoDeserializer implements Deserializer<Object> {
 
     @Override
     public Object deserialize(String topic, byte[] bytes) {
-        Kryo kryo = new Kryo();
-        //try {
-        if (bytes == null) {
-            return null;
-        } else {
-            Object deserialize = Deserializer.deserialize(bytes);
-            return  deserialize;
-
-        }
-        /*} catch (Exception e) {
+        try {
+            if (bytes == null) {
+                return null;
+            } else {
+                return Deserializer.deserialize(bytes);
+            }
+        } catch (Exception e) {
             System.out.println(e);
             return null;
-        }*/
+        }
     }
 
     @Override
@@ -48,10 +45,9 @@ public class KryoDeserializer implements Deserializer<Object> {
 
 
     private static class Deserializer {
-
         private static Object deserialize(byte[] bytes) {
             Kryo kryo = getKryo();
-            Input input = new Input(102400);
+            Input input = new Input();
             ByteArrayInputStream stream = new ByteArrayInputStream(bytes);
             input.setInputStream(stream);
             Object o = kryo.readClassAndObject(input);
@@ -61,7 +57,8 @@ public class KryoDeserializer implements Deserializer<Object> {
 
         private static Kryo getKryo() {
             Kryo kryo = new Kryo();
-            DefaultInstantiatorStrategy defaultInstantiatorStrategy = new DefaultInstantiatorStrategy(new StdInstantiatorStrategy());
+            StdInstantiatorStrategy stdInstantiatorStrategy = new StdInstantiatorStrategy();
+            DefaultInstantiatorStrategy defaultInstantiatorStrategy = new DefaultInstantiatorStrategy(stdInstantiatorStrategy);
             kryo.setInstantiatorStrategy(defaultInstantiatorStrategy);
             kryo.setReferences(false);
             kryo.setRegistrationRequired(false);

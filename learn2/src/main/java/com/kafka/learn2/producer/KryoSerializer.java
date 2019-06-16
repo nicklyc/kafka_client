@@ -20,34 +20,25 @@ import java.util.Map;
  */
 public class KryoSerializer implements Serializer {
 
-
-
-
     private Kryo kryo;
 
     @Override
     public void configure(Map configs, boolean isKey) {
-        kryo = new Kryo();
-        DefaultInstantiatorStrategy defaultInstantiatorStrategy = new DefaultInstantiatorStrategy(new StdInstantiatorStrategy());
-        kryo.setInstantiatorStrategy(defaultInstantiatorStrategy);
-        kryo.setReferences(false);
-        kryo.setRegistrationRequired(false);
-        kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
+        this.kryo = Serializer.getKryo();
     }
 
     @Override
     public byte[] serialize(String topic, Object data) {
 
-        // try {
-        if (data == null) {
+        try {
+            if (data == null) {
+                return null;
+            }
+            return Serializer.serialize(data, kryo);
+        } catch (Exception e) {
+            System.out.println(e);
             return null;
         }
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        byte[] serialize = Serializer.serialize(data, outputStream);
-        return serialize;
-        /*} catch (Exception e) {
-            return null;
-        }*/
 
     }
 
@@ -57,26 +48,25 @@ public class KryoSerializer implements Serializer {
 
     }
 
-     private static class Serializer{
+    private static class Serializer {
+        private static byte[] serialize(Object object, Kryo kryo) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            Output output = new Output(1024, 102400);
+            output.setOutputStream(outputStream);
+            kryo.writeClassAndObject(output, object);
+            output.close();
+            return outputStream.toByteArray();
+        }
 
-         private static byte[] serialize(Object object, ByteArrayOutputStream outputStream) {
-             Kryo kryo =getKryo();
-             Output output = new Output(1024, 102400);
-             output.setOutputStream(outputStream);
-             kryo.writeClassAndObject(output, object);
-             output.close();
-             return outputStream.toByteArray();
-         }
-
-         private  static  Kryo getKryo() {
-             Kryo kryo = new Kryo();
-             DefaultInstantiatorStrategy defaultInstantiatorStrategy = new DefaultInstantiatorStrategy(new StdInstantiatorStrategy());
-             kryo.setInstantiatorStrategy(defaultInstantiatorStrategy);
-             kryo.setReferences(false);
-             kryo.setRegistrationRequired(false);
-             kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
-             return kryo;
-         }
+        private static Kryo getKryo() {
+            Kryo kryo = new Kryo();
+            DefaultInstantiatorStrategy defaultInstantiatorStrategy = new DefaultInstantiatorStrategy(new StdInstantiatorStrategy());
+            kryo.setInstantiatorStrategy(defaultInstantiatorStrategy);
+            kryo.setReferences(false);
+            kryo.setRegistrationRequired(false);
+            kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
+            return kryo;
+        }
     }
 
 }
