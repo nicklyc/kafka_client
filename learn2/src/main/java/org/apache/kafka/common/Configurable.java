@@ -24,7 +24,7 @@ import java.util.Map;
 public interface Configurable {
 
     /**
-     * Configure this class with the given key-value pairs
+     * 对指定的key进行配置
      */
     void configure(Map<String, ?> configs);
 

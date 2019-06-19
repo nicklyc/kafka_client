@@ -23,14 +23,7 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * A convenient base class for configurations to extend.
@@ -41,31 +34,53 @@ public class AbstractConfig {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    /* configs for which values have been requested, used to detect unused configs */
+    /**
+     * 已经使用的配置
+     */
     private final Set<String> used;
 
-    /* the original values passed in by the user */
+    /**
+     * 用户自定义的原始配置
+     */
     private final Map<String, ?> originals;
 
-    /* the parsed values */
+    /**
+     * 解析的值，用户自定义配置和初始化配置，
+     * 如果用户自定义的配置包含默认配置
+     * 这个时候会解析的时候将默认值替换为用户自定义值
+     */
     private final Map<String, Object> values;
-
+    /**
+     * kafka默认配置
+     */
     private final ConfigDef definition;
 
-    @SuppressWarnings("unchecked")
+    /**
+     * 解析配置
+     *
+     * @param definition 默认配置
+     * @param originals  自定义配置
+     * @param doLog
+     */
     public AbstractConfig(ConfigDef definition, Map<?, ?> originals, boolean doLog) {
-        /* check that all the keys are really strings */
+        //校验配置key的类型
         for (Map.Entry<?, ?> entry : originals.entrySet())
             if (!(entry.getKey() instanceof String))
                 throw new ConfigException(entry.getKey().toString(), entry.getValue(), "Key must be a string.");
         this.originals = (Map<String, ?>) originals;
+
+        //解析用户配置到values中
         this.values = definition.parse(this.originals);
         Map<String, Object> configUpdates = postProcessParsedConfig(Collections.unmodifiableMap(this.values));
         for (Map.Entry<String, Object> update : configUpdates.entrySet()) {
             this.values.put(update.getKey(), update.getValue());
         }
+        //解析默认配置到values中，
         definition.parse(this.values);
+
+        //定义使用的配置
         this.used = Collections.synchronizedSet(new HashSet<String>());
+
         this.definition = definition;
         if (doLog)
             logAll();
@@ -89,7 +104,9 @@ public class AbstractConfig {
     protected Object get(String key) {
         if (!values.containsKey(key))
             throw new ConfigException(String.format("Unknown configuration '%s'", key));
+        //添加到使用配置
         used.add(key);
+        //从已经解析配置中获配置值
         return values.get(key);
     }
 
@@ -147,6 +164,11 @@ public class AbstractConfig {
         return keys;
     }
 
+    /**
+     * 将用户自定义的配置  转变成map
+     *
+     * @return
+     */
     public Map<String, Object> originals() {
         Map<String, Object> copy = new RecordingMap<>();
         copy.putAll(originals);
@@ -289,33 +311,34 @@ public class AbstractConfig {
     }
 
     /**
-     * Get a configured instance of the give class specified by the given configuration key. If the object implements
-     * Configurable configure it using the configuration.
+     * 获取T接口的的配置实例对象
      *
-     * @param key The configuration key for the class
-     * @param t   The interface the class should implement
-     * @return A configured instance of the class
+     * @param key 配置ksy
+     * @param t   接口
+     * @return A    配置的value实例
      */
     public <T> T getConfiguredInstance(String key, Class<T> t) {
+        //获取配置的Class对象
         Class<?> c = getClass(key);
         if (c == null)
             return null;
+        //反射创建实例
         Object o = Utils.newInstance(c);
+        //类型判断
         if (!t.isInstance(o))
             throw new KafkaException(c.getName() + " is not an instance of " + t.getName());
         if (o instanceof Configurable)
+            //配置到用户自定义配置
             ((Configurable) o).configure(originals());
         return t.cast(o);
     }
 
     /**
-     * Get a list of configured instances of the given class specified by the given configuration key. The configuration
-     * may specify either null or an empty string to indicate no configured instances. In both cases, this method
-     * returns an empty list to indicate no configured instances.
+     * 获取T接口的的配置实例对象，配置了多个实现类名字
      *
-     * @param key The configuration key for the class
-     * @param t   The interface the class should implement
-     * @return The list of configured instances
+     * @param key 配置名
+     * @param t   接口
+     * @return 实例集合
      */
     public <T> List<T> getConfiguredInstances(String key, Class<T> t) {
         return getConfiguredInstances(key, t, Collections.<String, Object>emptyMap());

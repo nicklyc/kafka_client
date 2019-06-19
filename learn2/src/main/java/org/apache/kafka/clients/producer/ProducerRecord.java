@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.apache.kafka.clients.producer;
 
@@ -29,17 +25,13 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
  * present a partition will be assigned in a round-robin fashion.
  * <p>
  * The record also has an associated timestamp. If the user did not provide a timestamp, the producer will stamp the
- * record with its current time. The timestamp eventually used by Kafka depends on the timestamp type configured for
- * the topic.
- * <li>
- * If the topic is configured to use {@link org.apache.kafka.common.record.TimestampType#CREATE_TIME CreateTime},
- * the timestamp in the producer record will be used by the broker.
- * </li>
- * <li>
- * If the topic is configured to use {@link org.apache.kafka.common.record.TimestampType#LOG_APPEND_TIME LogAppendTime},
- * the timestamp in the producer record will be overwritten by the broker with the broker local time when it appends the
- * message to its log.
- * </li>
+ * record with its current time. The timestamp eventually used by Kafka depends on the timestamp type configured for the
+ * topic.
+ * <li>If the topic is configured to use {@link org.apache.kafka.common.record.TimestampType#CREATE_TIME CreateTime},
+ * the timestamp in the producer record will be used by the broker.</li>
+ * <li>If the topic is configured to use {@link org.apache.kafka.common.record.TimestampType#LOG_APPEND_TIME
+ * LogAppendTime}, the timestamp in the producer record will be overwritten by the broker with the broker local time
+ * when it appends the message to its log.</li>
  * <p>
  * In either of the cases above, the timestamp that has actually been used will be returned to user in
  * {@link RecordMetadata}
@@ -56,23 +48,23 @@ public class ProducerRecord<K, V> {
     /**
      * Creates a record with a specified timestamp to be sent to a specified topic and partition
      *
-     * @param topic     The topic the record will be appended to
+     * @param topic The topic the record will be appended to
      * @param partition The partition to which the record should be sent
-     * @param timestamp The timestamp of the record, in milliseconds since epoch. If null, the producer will assign
-     *                  the timestamp using System.currentTimeMillis().
-     * @param key       The key that will be included in the record
-     * @param value     The record contents
-     * @param headers   the headers that will be included in the record
+     * @param timestamp The timestamp of the record, in milliseconds since epoch. If null, the producer will assign the
+     *        timestamp using System.currentTimeMillis().
+     * @param key The key that will be included in the record
+     * @param value The record contents
+     * @param headers the headers that will be included in the record
      */
     public ProducerRecord(String topic, Integer partition, Long timestamp, K key, V value, Iterable<Header> headers) {
         if (topic == null)
             throw new IllegalArgumentException("Topic cannot be null.");
         if (timestamp != null && timestamp < 0)
             throw new IllegalArgumentException(
-                    String.format("Invalid timestamp: %d. Timestamp should always be non-negative or null.", timestamp));
+                String.format("Invalid timestamp: %d. Timestamp should always be non-negative or null.", timestamp));
         if (partition != null && partition < 0)
-            throw new IllegalArgumentException(
-                    String.format("Invalid partition: %d. Partition number should always be non-negative or null.", partition));
+            throw new IllegalArgumentException(String
+                .format("Invalid partition: %d. Partition number should always be non-negative or null.", partition));
         this.topic = topic;
         this.partition = partition;
         this.key = key;
@@ -84,12 +76,12 @@ public class ProducerRecord<K, V> {
     /**
      * Creates a record with a specified timestamp to be sent to a specified topic and partition
      *
-     * @param topic     The topic the record will be appended to
+     * @param topic The topic the record will be appended to
      * @param partition The partition to which the record should be sent
      * @param timestamp The timestamp of the record, in milliseconds since epoch. If null, the producer will assign the
-     *                  timestamp using System.currentTimeMillis().
-     * @param key       The key that will be included in the record
-     * @param value     The record contents
+     *        timestamp using System.currentTimeMillis().
+     * @param key The key that will be included in the record
+     * @param value The record contents
      */
     public ProducerRecord(String topic, Integer partition, Long timestamp, K key, V value) {
         this(topic, partition, timestamp, key, value, null);
@@ -98,11 +90,11 @@ public class ProducerRecord<K, V> {
     /**
      * Creates a record to be sent to a specified topic and partition
      *
-     * @param topic     The topic the record will be appended to
+     * @param topic The topic the record will be appended to
      * @param partition The partition to which the record should be sent
-     * @param key       The key that will be included in the record
-     * @param value     The record contents
-     * @param headers   The headers that will be included in the record
+     * @param key The key that will be included in the record
+     * @param value The record contents
+     * @param headers The headers that will be included in the record
      */
     public ProducerRecord(String topic, Integer partition, K key, V value, Iterable<Header> headers) {
         this(topic, partition, null, key, value, headers);
@@ -111,10 +103,10 @@ public class ProducerRecord<K, V> {
     /**
      * Creates a record to be sent to a specified topic and partition
      *
-     * @param topic     The topic the record will be appended to
+     * @param topic The topic the record will be appended to
      * @param partition The partition to which the record should be sent
-     * @param key       The key that will be included in the record
-     * @param value     The record contents
+     * @param key The key that will be included in the record
+     * @param value The record contents
      */
     public ProducerRecord(String topic, Integer partition, K key, V value) {
         this(topic, partition, null, key, value, null);
@@ -124,7 +116,7 @@ public class ProducerRecord<K, V> {
      * Create a record to be sent to Kafka
      *
      * @param topic The topic the record will be appended to
-     * @param key   The key that will be included in the record
+     * @param key The key that will be included in the record
      * @param value The record contents
      */
     public ProducerRecord(String topic, K key, V value) {
@@ -189,8 +181,8 @@ public class ProducerRecord<K, V> {
         String key = this.key == null ? "null" : this.key.toString();
         String value = this.value == null ? "null" : this.value.toString();
         String timestamp = this.timestamp == null ? "null" : this.timestamp.toString();
-        return "ProducerRecord(topic=" + topic + ", partition=" + partition + ", headers=" + headers + ", key=" + key + ", value=" + value +
-                ", timestamp=" + timestamp + ")";
+        return "ProducerRecord(topic=" + topic + ", partition=" + partition + ", headers=" + headers + ", key=" + key
+            + ", value=" + value + ", timestamp=" + timestamp + ")";
     }
 
     @Override
@@ -200,7 +192,7 @@ public class ProducerRecord<K, V> {
         else if (!(o instanceof ProducerRecord))
             return false;
 
-        ProducerRecord<?, ?> that = (ProducerRecord<?, ?>) o;
+        ProducerRecord<?, ?> that = (ProducerRecord<?, ?>)o;
 
         if (key != null ? !key.equals(that.key) : that.key != null)
             return false;

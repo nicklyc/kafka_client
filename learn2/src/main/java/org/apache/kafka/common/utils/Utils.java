@@ -307,7 +307,7 @@ public final class Utils {
     }
 
     /**
-     * Instantiate the class
+     * 根据字节码反射创建一个实例
      */
     public static <T> T newInstance(Class<T> c) {
         if (c == null)

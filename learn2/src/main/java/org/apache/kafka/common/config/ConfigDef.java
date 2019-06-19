@@ -34,12 +34,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * This class is used for specifying the set of expected configurations. For each configuration, you can specify
- * the name, the type, the default value, the documentation, the group information, the order in the group,
- * the width of the configuration value and the name suitable for display in the UI.
- * <p>
- * You can provide special validation logic used for single configuration validation by overriding {@link Validator}.
- * <p>
+ * 默认的初始化配置对象
+ *
  * Moreover, you can specify the dependents of a configuration. The valid values and visibility of a configuration
  * may change according to the values of other configurations. You can override {@link Recommender} to get valid
  * values and set visibility of a configuration given the current configuration values.
@@ -476,22 +472,31 @@ public class ConfigDef {
             String joined = Utils.join(undefinedConfigKeys, ",");
             throw new ConfigException("Some configurations in are referred in the dependents, but not defined: " + joined);
         }
-        // parse all known keys
+        //遍历所有的配置项
         Map<String, Object> values = new HashMap<>();
         for (ConfigKey key : configKeys.values())
+            //将所有的配值放进values.map中，value的计算
             values.put(key.name, parseValue(key, props.get(key.name), props.containsKey(key.name)));
         return values;
     }
 
+    /**
+     *
+     * @param key   配置项
+     * @param value 用户value
+     * @param isSet 用户定义的配置中是否包含该配置项
+     * @return
+     */
     Object parseValue(ConfigKey key, Object value, boolean isSet) {
         Object parsedValue;
         if (isSet) {
+            //如果包含则使用用户的value，就是props中的value
             parsedValue = parseType(key.name, value, key.type);
             // props map doesn't contain setting, the key is required because no default value specified - its an error
         } else if (NO_DEFAULT_VALUE.equals(key.defaultValue)) {
             throw new ConfigException("Missing required configuration \"" + key.name + "\" which has no default value.");
         } else {
-            // otherwise assign setting its default value
+            // 如果不包含则使用默认的value
             parsedValue = key.defaultValue;
         }
         if (key.validator != null) {

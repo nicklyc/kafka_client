@@ -21,7 +21,7 @@ import java.util.Map;
 import org.apache.kafka.common.header.Headers;
 
 /**
- * A Serializer that has access to the headers associated with the record.
+ * 可以访问header 的一个包装类，
  * <p>
  * Prefer {@link Serializer} if access to the headers is not required. Once Kafka drops support for Java 7, the
  * {@code serialize()} method introduced by this interface will be added to Serializer with a default implementation
@@ -71,8 +71,12 @@ public interface ExtendedSerializer<T> extends Serializer<T> {
             serializer.close();
         }
 
+
         public static <T> ExtendedSerializer<T> ensureExtended(Serializer<T> serializer) {
-            return serializer == null ? null : serializer instanceof ExtendedSerializer ? (ExtendedSerializer<T>) serializer : new Wrapper<>(serializer);
+            return serializer == null ? null :
+                    //如果没有实现ExtendedSerializer，将对他使用Wrapper进行包装，这样的可以对类进行增强
+                    serializer instanceof ExtendedSerializer ? (ExtendedSerializer<T>) serializer
+                            : new Wrapper<>(serializer);
         }
     }
 }
