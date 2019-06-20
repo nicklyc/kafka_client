@@ -40,6 +40,7 @@ public class ChannelBuilders {
     }
 
     /**
+     * 
      * @param securityProtocol           the securityProtocol
      * @param contextType                the contextType, it must be non-null if `securityProtocol` is SASL_*; it is ignored otherwise
      * @param config                     client config
@@ -68,6 +69,7 @@ public class ChannelBuilders {
     }
 
     /**
+     * 
      * @param listenerName     the listenerName
      * @param securityProtocol the securityProtocol
      * @param config           server config
@@ -84,6 +86,21 @@ public class ChannelBuilders {
                 isInterBrokerListener, null, true, credentialCache, tokenCache);
     }
 
+    /**
+     * 根据不同的安全协议 实例化一个ChannelBuilder 实例
+     * 
+     * @param securityProtocol
+     * @param mode 模式
+     * @param contextType
+     * @param config 需要的配置
+     * @param listenerName
+     * @param isInterBrokerListener
+     * @param clientSaslMechanism
+     * @param saslHandshakeRequestEnable
+     * @param credentialCache
+     * @param tokenCache
+     * @return
+     */
     private static ChannelBuilder create(SecurityProtocol securityProtocol,
                                          Mode mode,
                                          JaasContext.Type contextType,
@@ -137,7 +154,9 @@ public class ChannelBuilders {
             default:
                 throw new IllegalArgumentException("Unexpected securityProtocol " + securityProtocol);
         }
-
+        /**
+         * channelBuilder 持有所有配置
+         */
         channelBuilder.configure(configs);
         return channelBuilder;
     }

@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.apache.kafka.common.security.auth;
 
@@ -23,17 +19,22 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Kafka 安全协议
+ */
 public enum SecurityProtocol {
     /**
-     * Un-authenticated, non-encrypted channel
+     * PLAINTEXT协议
+     * 
+     * 不用认证，通道不加密，默认方式
      */
     PLAINTEXT(0, "PLAINTEXT"),
     /**
-     * SSL channel
+     * SSL 协议 默认已经禁止，比较麻烦，涉及。密钥证书操作。
      */
     SSL(1, "SSL"),
     /**
-     * SASL authenticated, non-encrypted channel
+     * 用户名，密码认证，通道不加密
      */
     SASL_PLAINTEXT(2, "SASL_PLAINTEXT"),
     /**
@@ -57,7 +58,8 @@ public enum SecurityProtocol {
     }
 
     /**
-     * The permanent and immutable id of a security protocol -- this can't change, and must match kafka.cluster.SecurityProtocol
+     * The permanent and immutable id of a security protocol -- this can't change, and must match
+     * kafka.cluster.SecurityProtocol
      */
     public final short id;
 
@@ -67,7 +69,7 @@ public enum SecurityProtocol {
     public final String name;
 
     SecurityProtocol(int id, String name) {
-        this.id = (short) id;
+        this.id = (short)id;
         this.name = name;
     }
 
