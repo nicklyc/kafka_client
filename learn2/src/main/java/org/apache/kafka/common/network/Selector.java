@@ -55,22 +55,20 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A nioSelector interface for doing non-blocking multi-connection network I/O.
+ * nioSelector 包装类，是一个线程非安全的类
  * <p>
- * This class works with {@link NetworkSend} and {@link NetworkReceive} to transmit size-delimited network requests and
- * responses.
+ * 与
+ * NetworkSend
+ * NetworkReceive
+ * 实现网络的读写
+ * <p>
+ * 根据该类中的方法可以看出Selector 就是kafka中负责客户端和服务器中间进行建立网络连接额实现网络读写的类
  * <p>
  * A connection can be added to the nioSelector associated with an integer id by doing
  *
  * <pre>
- * nioSelector.connect(&quot;42&quot;, new InetSocketAddress(&quot;google.com&quot;, server.port), 64000, 64000);
- * </pre>
- * <p>
- * The connect call does not block on the creation of the TCP connection, so the connect method only begins initiating
- * the connection. The successful invocation of this method does not mean a valid connection has been established.
- * <p>
- * Sending requests, receiving responses, processing connection completions, and disconnections on the existing
- * connections are all done using the <code>poll()</code> call.
+ * connect（），方法实现建立连接
+ * poll()，方法实现网络读写，维护连接
  *
  * <pre>
  * nioSelector.send(new NetworkSend(myDestination, myBytes));
@@ -80,8 +78,6 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * The nioSelector maintains several lists that are reset by each call to <code>poll()</code> which are available via
  * various getters. These are reset by each call to <code>poll()</code>.
- * <p>
- * This class is not thread safe!
  */
 public class Selector implements Selectable, AutoCloseable {
 
@@ -126,17 +122,23 @@ public class Selector implements Selectable, AutoCloseable {
     private boolean madeReadProgressLastPoll = true;
 
     /**
-     * Create a new nioSelector
+     * Selector的核心构造方法
+     * 在该构造方法最核心就是 ：初始化了一个nioSelector和构造注入一个channelBuilder
+     * 以及初始化一些其他成员参数
      *
-     * @param maxReceiveSize       Max size in bytes of a single network receive (use {@link NetworkReceive#UNLIMITED} for no limit)
-     * @param connectionMaxIdleMs  Max idle connection time (use {@link #NO_IDLE_TIMEOUT_MS} to disable idle timeout)
+     * @param maxReceiveSize       单个网络的最大byte,producer使用的是NetworkReceive.UNLIMITED=-1，无限制
+     * @param connectionMaxIdleMs  最大空闲连接时间 ，空闲超过该时间，连接被关闭。
+     *                             该值设置为-1的时候，就是不超时。在该类的成员NO_IDLE_TIMEOUT_MS中定义了值
+     *                             <p>
+     *                             该值在producer中对应的是selector connections.max.idle.ms 配置。
+     *                             默认配置值：9 * 60 * 1000
      * @param metrics              Registry for Selector metrics
      * @param time                 Time implementation
      * @param metricGrpPrefix      Prefix for the group of metrics registered by Selector
      * @param metricTags           Additional tags to add to metrics registered by Selector
      * @param metricsPerConnection Whether or not to enable per-connection metrics
-     * @param channelBuilder       Channel builder for every new connection
-     * @param logContext           Context for logging with additional info
+     * @param channelBuilder       连接构建器
+     * @param logContext           日志上下文
      */
     public Selector(int maxReceiveSize,
                     long connectionMaxIdleMs,
@@ -150,6 +152,7 @@ public class Selector implements Selectable, AutoCloseable {
                     MemoryPool memoryPool,
                     LogContext logContext) {
         try {
+            //获得一个nioSelector
             this.nioSelector = java.nio.channels.Selector.open();
         } catch (IOException e) {
             throw new KafkaException(e);
@@ -194,8 +197,7 @@ public class Selector implements Selectable, AutoCloseable {
     }
 
     /**
-     * Begin connecting to the given address and add the connection to this nioSelector associated with the given id
-     * number.
+     * 建立连接，
      * <p>
      * Note that this call only initiates the connection, which will be completed on a future {@link #poll(long)}
      * call. Check {@link #connected()} to see which (if any) connections have completed after a given poll call.
@@ -210,10 +212,17 @@ public class Selector implements Selectable, AutoCloseable {
     @Override
     public void connect(String id, InetSocketAddress address, int sendBufferSize, int receiveBufferSize) throws IOException {
         ensureNotRegistered(id);
+        /***获得SocketChannel
+         * 这里使用的无参open,所以这里并没有真正的建立间接
+         */
         SocketChannel socketChannel = SocketChannel.open();
         try {
             configureSocketChannel(socketChannel, sendBufferSize, receiveBufferSize);
+           //建立连接
             boolean connected = doConnect(socketChannel, address);
+            /**将socketChannel注册到selector
+             * 这里就是经典的nio 网络模型实现
+             */
             SelectionKey key = registerChannel(id, socketChannel, SelectionKey.OP_CONNECT);
 
             if (connected) {
@@ -228,8 +237,13 @@ public class Selector implements Selectable, AutoCloseable {
         }
     }
 
-    // Visible to allow test cases to override. In particular, we use this to implement a blocking connect
-    // in order to simulate "immediately connected" sockets.
+    /**
+     * 实现真正的建立网络连接
+     * @param channel
+     * @param address
+     * @return
+     * @throws IOException
+     */
     protected boolean doConnect(SocketChannel channel, InetSocketAddress address) throws IOException {
         try {
             return channel.connect(address);
