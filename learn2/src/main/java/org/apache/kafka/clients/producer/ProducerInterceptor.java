@@ -19,6 +19,8 @@ package org.apache.kafka.clients.producer;
 import org.apache.kafka.common.Configurable;
 
 /**
+ * 拦截器接口
+ *
  * A plugin interface that allows you to intercept (and possibly mutate) the records received by the producer before
  * they are published to the Kafka cluster.
  * <p>
@@ -67,9 +69,13 @@ public interface ProducerInterceptor<K, V> extends Configurable {
     public ProducerRecord<K, V> onSend(ProducerRecord<K, V> record);
 
     /**
+     * 这个消息将会在服务器ack 或者被发送到broker之前失败的时候会被调用
+     *
      * This method is called when the record sent to the server has been acknowledged, or when sending the record fails before
      * it gets sent to the server.
      * <p>
+     *     这个方法会先与send的回调方法被调用
+     *
      * This method is generally called just before the user callback is called, and in additional cases when <code>KafkaProducer.send()</code>
      * throws an exception.
      * <p>

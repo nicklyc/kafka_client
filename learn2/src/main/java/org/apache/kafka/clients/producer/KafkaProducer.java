@@ -850,6 +850,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      *             the exception for more details
      * @throws KafkaException if the producer has encountered a previous fatal error or for any other unexpected error
      */
+    @Override
     public void abortTransaction() throws ProducerFencedException {
         throwIfNoTransactionManager();
         TransactionalRequestResult result = transactionManager.beginAbort();
@@ -867,7 +868,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     }
 
     /**
-     * Asynchronously send a record to a topic and invoke the provided callback when the send has been acknowledged.
+     * 异步发送消息的的核心方法，
+     * 收到ack时执行回调方法
+     *
+     * 这个方法的本身是异步的，因为返回的结果是一个future, 可以通过future实现
+     * 发送消息的串行化，进而实现同步发送，但是这个同步跟这个方法没有关系。
      * <p>
      * The send is asynchronous and this method will return immediately once the record has been stored in the buffer of
      * records waiting to be sent. This allows sending many records in parallel without blocking to wait for the
@@ -973,7 +978,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      */
     @Override
     public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
-        // intercept the record, which can be potentially modified; this method does not throw exceptions
+        //拦截器处理
         ProducerRecord<K, V> interceptedRecord = this.interceptors.onSend(record);
         return doSend(interceptedRecord, callback);
     }
