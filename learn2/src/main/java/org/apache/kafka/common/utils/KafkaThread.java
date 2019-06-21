@@ -20,7 +20,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A wrapper for Thread that sets things up nicely
+ * Sender线程的包装类，
+ * 
+ * 虽然该类没有持有sender线程从提供的方法和构造方法中看出作用：
+ * 
+ * 开启sender 线程，并将其设置为守护线程
  */
 public class KafkaThread extends Thread {
 

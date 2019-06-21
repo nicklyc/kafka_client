@@ -569,6 +569,12 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
             String ioThreadName = NETWORK_THREAD_PREFIX + " | " + clientId;
 
+            /**
+             * 开启sender线程，并设置为主线程的守护线程
+             * 这里设置成守护线程有很多好处。我们只需要维护producer线程就可以了，不需要另外维护
+             * sender线程，在一些后台功能的线程中守护线程的应用场景很多：
+             * 比如：JVM 的GC线程，比如心跳管理线程。
+             */
             this.ioThread = new KafkaThread(ioThreadName, this.sender, true);
             this.ioThread.start();
 
