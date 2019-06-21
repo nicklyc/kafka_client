@@ -141,12 +141,12 @@ public class NetworkClient implements KafkaClient {
      * @param metadata
      * @param selector
      * @param clientId
-     * @param maxInFlightRequestsPerConnection
-     * @param reconnectBackoffMs
-     * @param reconnectBackoffMax
-     * @param socketSendBuffer
-     * @param socketReceiveBuffer
-     * @param defaultRequestTimeoutMs
+     * @param maxInFlightRequestsPerConnection max.in.flight.requests.per.connection
+     * @param reconnectBackoffMs               reconnect.backoff.ms
+     * @param reconnectBackoffMax              reconnect.backoff.max.ms
+     * @param socketSendBuffer                 send.buffer.bytes
+     * @param socketReceiveBuffer              receive.buffer.bytes
+     * @param defaultRequestTimeoutMs          request.timeout.ms
      * @param time
      * @param discoverBrokerVersions
      * @param apiVersions

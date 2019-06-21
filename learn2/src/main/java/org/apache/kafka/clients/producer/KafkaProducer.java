@@ -435,6 +435,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             this.transactionManager = configureTransactionState(config, logContext, log);
             /**
              * <p>
+             * 重试次数
              * <li>读取retries 配置。当有事务的时候，如果用户没有配置这个值，会一直重试</li>
              * <li>如果允许重试那么考虑消息的顺序问题</li>
              * <li>可以结合max.in.flight.requests.per.connection的配置值进行顺序保证,但该配置会引起吞吐量问题/li>
@@ -556,6 +557,10 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
              * 
              * 这个线程中将从broker获取metadata 信息 <br>
              * 从accumulator中获取消息并发送给broker
+             *
+             * max.request.size
+             * request.timeout.ms
+             * retry.backoff.ms
              */
             this.sender = new Sender(logContext, client, this.metadata, this.accumulator, maxInflightRequests == 1,
                 config.getInt(ProducerConfig.MAX_REQUEST_SIZE_CONFIG), acks, retries, metricsRegistry.senderMetrics,

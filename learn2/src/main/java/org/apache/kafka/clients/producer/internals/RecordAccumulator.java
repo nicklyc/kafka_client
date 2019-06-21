@@ -60,30 +60,64 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This class acts as a queue that accumulates records into {@link MemoryRecords}
- * instances to be sent to the server.
- * <p>
- * The accumulator uses a bounded amount of memory and append calls will block when that memory is exhausted, unless
- * this behavior is explicitly disabled.
+ * 消息缓存队列
+ * 
+ * producer 调用tryappend()方法进行追加消息到accumulator中
+ *
+ * accumulator的内存大小是有限制的，通过配置buffer.memory配置进行指定，默认值32M
+ * 如果当内存快用完的时候，tryappend()方法将会发送阻塞。
+ *
  */
 public final class RecordAccumulator {
 
     private final Logger log;
+    /**
+     * 缓存开关，当关闭的时候，消息不能追加到缓存中
+     */
     private volatile boolean closed;
+    /**
+     * flush的线程计数器
+     */
     private final AtomicInteger flushesInProgress;
+    /**
+     * 追加消息的线程计数器
+     */
     private final AtomicInteger appendsInProgress;
+    /**
+     * 批量发送消息的size
+     */
     private final int batchSize;
+    /**
+     * 消息压缩方式
+     */
     private final CompressionType compression;
+    /**
+     * 延时发送毫秒数
+     */
     private final long lingerMs;
+    /**
+     * 重试重试间隔时间
+     */
     private final long retryBackoffMs;
     private final BufferPool free;
     private final Time time;
     private final ApiVersions apiVersions;
+    /**
+     * 缓存队列
+     * RecordAccumulator的核心数据，就是将消息按照分区进行分类存放在ConcurrentMap容器中
+     * key：分区包装对象 TopicPartition
+     * value: 消息队列，Deque<ProducerBatch> 
+     */
     private final ConcurrentMap<TopicPartition, Deque<ProducerBatch>> batches;
+    /**
+     * 未收到ack的消息
+     */
     private final IncompleteBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.
     private final Map<TopicPartition, Long> muted;
+   
     private int drainIndex;
+    
     private final TransactionManager transactionManager;
 
     /**
