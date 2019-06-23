@@ -27,6 +27,8 @@ import java.util.List;
 /**
  * The interface used by `NetworkClient` to request cluster metadata info to be updated and to retrieve the cluster nodes
  * from such metadata. This is an internal class.
+ * 更新metadata 的接口
+ * 在NetworkClient 中使用
  * <p>
  * This class is not thread-safe!
  */

@@ -19,12 +19,19 @@ package org.apache.kafka.common;
 import java.io.Serializable;
 
 /**
- * A topic name and partition number
+ * topic的简要信息
+ * 仅仅封装了  分区号和topic name
  */
 public final class TopicPartition implements Serializable {
 
     private int hash = 0;
+    /**
+     * 分区号
+     */
     private final int partition;
+    /**
+     * name
+     */
     private final String topic;
 
     public TopicPartition(String topic, int partition) {

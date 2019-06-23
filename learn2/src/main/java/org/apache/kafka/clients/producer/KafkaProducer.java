@@ -868,7 +868,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     }
 
     /**
-     * 异步发送消息的的核心方法，
+     * 异步发送消息
      * 收到ack时执行回调方法
      *
      * 这个方法的本身是异步的，因为返回的结果是一个future, 可以通过future实现
@@ -990,14 +990,24 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             throw new IllegalStateException("Cannot perform operation after producer has been closed");
     }
 
-    /** Implementation of asynchronously send a record to a topic. */
+    /**
+     * 将消息追加到RecordAccumulator缓存队列，并唤醒sender线程
+     * @param record
+     * @param callback
+     * @return
+     */
     private Future<RecordMetadata> doSend(ProducerRecord<K, V> record, Callback callback) {
         TopicPartition tp = null;
         try {
             throwIfProducerClosed();
             // first make sure the metadata for the topic is available
+            //在数据发送前，需要先该 topic 是可用的
             ClusterAndWaitTime clusterAndWaitTime;
             try {
+                /**等待metadata的更新
+                 *
+                 * 这里就是更新的是Kafka的Cluster的信息，还有包括一些对应关系，关联联系，和一些逻辑数据
+                 */
                 clusterAndWaitTime = waitOnMetadata(record.topic(), record.partition(), maxBlockTimeMs);
             } catch (KafkaException e) {
                 if (metadata.isClosed())
@@ -1085,6 +1095,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     }
 
     /**
+     * 等待集群的元数据，
      * Wait for cluster metadata including partitions for the given topic to be available.
      *
      * @param topic The topic we want metadata for
@@ -1097,11 +1108,30 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
     private ClusterAndWaitTime waitOnMetadata(String topic, Integer partition, long maxWaitMs)
         throws InterruptedException {
         // add topic to metadata topic list if it is not there already and reset expiry
+        /**
+         * 将topic的名字加入metadata进行维护
+         * 
+         * 在 metadata 中添加 topic 后,并重置过期时间，
+         * 
+         * 如果 metadata 中没有这个 topic 的 meta，也就是新加入的topic，打开更新开关needUpdate=true
+         * 
+         */
         metadata.add(topic);
+        /**
+         * metadata 在KafkaProducer 核心构造方法中实例化了
+         * 获取Cluster 信息
+         */
         Cluster cluster = metadata.fetch();
+        /**
+         * 获取topic 的分区数
+         */
         Integer partitionsCount = cluster.partitionCountForTopic(topic);
         // Return cached metadata if we have it, and if the record's partition is either undefined
         // or within the known partition range
+        /**
+         * 如果medata中可已经维护的有该topic 的元数据，并且需要更新的分区号在 metadata维护的数据中，
+         * 那么就直接返回该medata中的cluster 信息，
+         */
         if (partitionsCount != null && (partition == null || partition < partitionsCount))
             return new ClusterAndWaitTime(cluster, 0);
 
@@ -1112,12 +1142,23 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         // In case we already have cached metadata for the topic, but the requested partition is greater
         // than expected, issue an update request only once. This is necessary in case the metadata
         // is stale and the number of partitions for this topic has increased in the meantime.
+
+        /**
+         * 当是一个新的topic 或者新分区进行metadata 更新
+         * 
+         * 使用了一个do while()循环进行更新数据， metadata.awaitUpdate(version, remainingWaitMs); while (partitionsCount ==
+         * null)一直更新到partitionsCount！=null;
+         * 更新数据结束，需要看是否超过了max.block.ms配置的最大阻塞时间
+         * 并且还要检查指定分区号是否可用
+         */
+
         do {
             log.trace("Requesting metadata update for topic {}.", topic);
             metadata.add(topic);
             int version = metadata.requestUpdate();
             sender.wakeup();
             try {
+                //等待更新cluster信息的阻塞方法
                 metadata.awaitUpdate(version, remainingWaitMs);
             } catch (TimeoutException ex) {
                 // Rethrow with original maxWaitMs to prevent logging exception with remainingWaitMs
@@ -1125,6 +1166,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             }
             cluster = metadata.fetch();
             elapsed = time.milliseconds() - begin;
+            //更新数据时间超过 max.block.ms
             if (elapsed >= maxWaitMs)
                 throw new TimeoutException("Failed to update metadata after " + maxWaitMs + " ms.");
             if (cluster.unauthorizedTopics().contains(topic))
@@ -1133,6 +1175,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             partitionsCount = cluster.partitionCountForTopic(topic);
         } while (partitionsCount == null);
 
+        //再次校验partition是否合法。主要是校验partition是否超过了可用分区
         if (partition != null && partition >= partitionsCount) {
             throw new KafkaException(String.format(
                 "Invalid partition given with record: %d is not in the range [0...%d).", partition, partitionsCount));
@@ -1350,6 +1393,9 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 + "by setting the " + ProducerConfig.TRANSACTIONAL_ID_CONFIG + " configuration property");
     }
 
+    /**
+     * 使用了一个静态内部类，封装了等待元数据更新的返回值， waitedOnMetadataMs 和 cluster
+     */
     private static class ClusterAndWaitTime {
         final Cluster cluster;
         final long waitedOnMetadataMs;

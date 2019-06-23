@@ -29,19 +29,42 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * kafka的集群
+ * 
+ * topic 与 partition的对应关系 ；node 与partition的对应关系
+ * 
  * A representation of a subset of the nodes, topics, and partitions in the Kafka cluster.
  */
 public final class Cluster {
 
     private final boolean isBootstrapConfigured;
+    /**
+     * node列表
+     */
     private final List<Node> nodes;
+    /**
+     * 未认证的topic 集合
+     */
     private final Set<String> unauthorizedTopics;
     private final Set<String> internalTopics;
     private final Node controller;
+    /**
+     * 分区信息
+     */
     private final Map<TopicPartition, PartitionInfo> partitionsByTopicPartition;
+    /**
+     * topic 与 partition 的对应关系
+     * 一个topic 对应多个partition
+     */
     private final Map<String, List<PartitionInfo>> partitionsByTopic;
     private final Map<String, List<PartitionInfo>> availablePartitionsByTopic;
+    /**
+    node 与 partition 的对应关系
+     */
     private final Map<Integer, List<PartitionInfo>> partitionsByNode;
+    /**
+     * node,id 对应关系
+     */
     private final Map<Integer, Node> nodesById;
     private final ClusterResource clusterResource;
 
@@ -222,7 +245,7 @@ public final class Cluster {
     }
 
     /**
-     * Get the number of partitions for the given topic
+     * 获取topic对应的分区数
      *
      * @param topic The topic to get the number of partitions for
      * @return The number of partitions or null if there is no corresponding metadata

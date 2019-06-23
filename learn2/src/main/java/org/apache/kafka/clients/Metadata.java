@@ -39,7 +39,9 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * A class encapsulating some of the logic around metadata.
+ * 元数据
+ * 维护的就是一些topic相关的数据，最主要的是Cluster 对象，其他的属于逻辑变量。
+ * 所有public方法都是synchronized修饰了，线程安全类
  * <p>
  * This class is shared by the client thread (for partitioning) and the background sender thread.
  * <p>
@@ -56,21 +58,51 @@ public final class Metadata implements Closeable {
 
     public static final long TOPIC_EXPIRY_MS = 5 * 60 * 1000;
     private static final long TOPIC_EXPIRY_NEEDS_UPDATE = -1L;
-
+    /**
+     * 失败重试的最小间隔时间
+     */
     private final long refreshBackoffMs;
+    /**
+     * metadata 的过期时间, 默认 60,000ms
+     */
     private final long metadataExpireMs;
+    /**
+     * 版本号
+     */
     private int version;
+    /**
+     * 上一次更新时间
+     */
     private long lastRefreshMs;
+    /**
+     * 上一次成功更新时间
+     */
     private long lastSuccessfulRefreshMs;
     private AuthenticationException authenticationException;
+    /**
+     * 集群数据，核心数据
+     * 其他的是逻辑数据，帮助业务处理
+     * cluster是关键数据
+     */
     private Cluster cluster;
+    /**
+     * 更新开关
+     */
     private boolean needUpdate;
-    /* Topics with expiry time */
+    /**
+     * topic的名字和过期时间映射关系
+     */
     private final Map<String, Long> topics;
     private final List<Listener> listeners;
     private final ClusterResourceListeners clusterResourceListeners;
+    /**
+     * 更新所有的topic开关
+     */
     private boolean needMetadataForAllTopics;
     private final boolean allowAutoTopicCreation;
+    /**
+     * 过期处理
+     */
     private final boolean topicExpiryEnabled;
     private boolean isClosed;
 
@@ -115,8 +147,9 @@ public final class Metadata implements Closeable {
     }
 
     /**
-     * Add the topic to maintain in the metadata. If topic expiry is enabled, expiry time
-     * will be reset on the next update.
+     * 添加新的topic 的名字到Metadata中进行维护，
+     * 会重置过期时间
+     * 刷新上一次更新时间，并且设置更新为true；
      */
     public synchronized void add(String topic) {
         Objects.requireNonNull(topic, "topic cannot be null");
@@ -168,6 +201,9 @@ public final class Metadata implements Closeable {
 
     /**
      * Wait for metadata update until the current version is larger than the last version we know of
+     * 更新metadata,只要版本号没有更新并且metadata没有close,就会一直调用wait阻塞，
+     * 当阻塞总时间超过max.block.ms，就会抛出超时异常。
+     *
      */
     public synchronized void awaitUpdate(final int lastVersion, final long maxWaitMs) throws InterruptedException {
         if (maxWaitMs < 0)

@@ -449,7 +449,13 @@ public class NetworkClient implements KafkaClient {
             completeResponses(responses);
             return responses;
         }
-
+        /**
+         * 在client 初始化的实例化的，用的new DefaultMetadataUpdater(metadata);
+         *
+         *
+         *
+         *
+         */
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
             this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs));
