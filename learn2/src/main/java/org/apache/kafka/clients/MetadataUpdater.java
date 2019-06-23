@@ -36,6 +36,7 @@ public interface MetadataUpdater extends Closeable {
 
     /**
      * Gets the current cluster info without blocking.
+     * 获取cluster信息
      */
     List<Node> fetchNodes();
 
