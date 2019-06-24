@@ -710,6 +710,14 @@ public class Sender implements Runnable {
 
     /**
      * Wake up the selector associated with this send thread
+     * sender 线程的wakeup 主要是唤醒的是 NetworkClient 的wakeup，
+     * 然后调用的是NetworkClient持有的selector 的wakeup，最终执行了
+     * nioSelector的wakeup方法，
+     *
+     * selector.wakeup主要是为了唤醒阻塞在selector.select上的线程，
+     * 让该线程及时去处理其他事情，
+     *
+     * 注意：selector监听channel事件，会发送阻塞。
      */
     public void wakeup() {
         this.client.wakeup();

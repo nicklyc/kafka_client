@@ -1150,12 +1150,17 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
          * null)一直更新到partitionsCount！=null;
          * 更新数据结束，需要看是否超过了max.block.ms配置的最大阻塞时间
          * 并且还要检查指定分区号是否可用
+         *
+         *  主线程 会阻塞在两个 while 循环中，直到 metadata 信息更新，
+         *
+         *  真正负责更新的是守护线程sender，主线程使用了两层whlie循环实现轮询更新的结果。
          */
 
         do {
             log.trace("Requesting metadata update for topic {}.", topic);
             metadata.add(topic);
             int version = metadata.requestUpdate();
+            //唤醒sender线程
             sender.wakeup();
             try {
                 //等待更新cluster信息的阻塞方法
