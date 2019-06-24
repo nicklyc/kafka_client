@@ -17,7 +17,7 @@
 package org.apache.kafka.common;
 
 /**
- * kafka 节点信息
+ * kafka 节点抽象
  */
 public class Node {
 

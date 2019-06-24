@@ -343,6 +343,7 @@ public class Selector implements Selectable, AutoCloseable {
      *
      * @param send The request to send
      */
+    @Override
     public void send(Send send) {
         String connectionId = send.destination();
         KafkaChannel channel = openOrClosingChannelOrFail(connectionId);

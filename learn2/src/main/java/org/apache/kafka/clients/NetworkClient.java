@@ -52,6 +52,9 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 /**
+ * Kafka 内核网络层，执行真正的异步网络读写，
+ * 非线程安全类
+ *
  * A network client for asynchronous request/response network i/o. This is an internal class used to implement the
  * user-facing producer and consumer clients.
  * <p>
@@ -61,14 +64,14 @@ public class NetworkClient implements KafkaClient {
 
     private final Logger log;
 
-    /* the selector used to perform network i/o */
+    /** 核心 用于执行网络I/O*/
     private final Selectable selector;
-
+    /** Metadata更新器 */
     private final MetadataUpdater metadataUpdater;
 
     private final Random randOffset;
 
-    /* the state of each node's connection */
+    /** 每一个node的连接状态 **/
     private final ClusterConnectionStates connectionStates;
 
     /* the set of requests currently being sent or awaiting a response */
@@ -199,6 +202,8 @@ public class NetworkClient implements KafkaClient {
     /**
      * Begin connecting to the given node, return true if we are already connected and ready to send to that node.
      *
+     * 检测指定node是否可以发送请求
+     * 如果可以发送，那么就返回true,否则就初始化一个连接，
      * @param node The node to check
      * @param now  The current timestamp
      * @return True if we are ready to send to the given node
@@ -208,11 +213,14 @@ public class NetworkClient implements KafkaClient {
         if (node.isEmpty())
             throw new IllegalArgumentException("Cannot connect to empty node " + node);
 
+        //是否已经准备好发送请求
         if (isReady(node, now))
             return true;
 
+        // 检测该节点现在是否能够连接
         if (connectionStates.canConnect(node.idString(), now))
             // if we are interested in sending to a node and we don't have a connection to it, initiate one
+          //初始化一个连接
             initiateConnect(node, now);
 
         return false;
@@ -336,12 +344,13 @@ public class NetworkClient implements KafkaClient {
     public boolean isReady(Node node, long now) {
         // if we need to update our metadata now declare all requests unready to make metadata requests first
         // priority
+       //是否我们现在需要更新元数据以及该node是否已经可以发送请求
         return !metadataUpdater.isUpdateDue(now) && canSendRequest(node.idString(), now);
     }
 
     /**
      * Are we connected and ready and able to send more requests to the given connection?
-     *
+     * 是否与指定的kafka节点已经建立好连接
      * @param node The node
      * @param now  the current timestamp
      */
@@ -352,12 +361,14 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Queue up the given request for sending. Requests can only be sent out to ready nodes.
+     *发送request
      *
      * @param request The request
      * @param now     The current timestamp
      */
     @Override
     public void send(ClientRequest request, long now) {
+        //发送request
         doSend(request, false, now);
     }
 
@@ -367,6 +378,7 @@ public class NetworkClient implements KafkaClient {
     }
 
     private void doSend(ClientRequest clientRequest, boolean isInternalRequest, long now) {
+       // 获取发往的node Id
         String nodeId = clientRequest.destination();
         if (!isInternalRequest) {
             // If this request came from outside the NetworkClient, validate
@@ -427,7 +439,9 @@ public class NetworkClient implements KafkaClient {
         Send send = request.toSend(destination, header);
         InFlightRequest inFlightRequest =
                 new InFlightRequest(clientRequest, header, isInternalRequest, request, send, now);
+        //添加请求到inFlightRequests队列
         this.inFlightRequests.add(inFlightRequest);
+        //发送请求
         selector.send(send);
     }
 
@@ -456,22 +470,36 @@ public class NetworkClient implements KafkaClient {
          *
          *
          */
+        // 更新元数据请求
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
         try {
+            // 执行I/O操作
             this.selector.poll(Utils.min(timeout, metadataTimeout, defaultRequestTimeoutMs));
         } catch (IOException e) {
             log.error("Unexpected error during I/O", e);
         }
 
         // process completed actions
+        //处理完成的行为
         long updatedNow = this.time.milliseconds();
         List<ClientResponse> responses = new ArrayList<>();
+        //处理完成发送
         handleCompletedSends(responses, updatedNow);
+
         handleCompletedReceives(responses, updatedNow);
+
         handleDisconnections(responses, updatedNow);
+        /**
+         *处理connect列表
+         */
         handleConnections();
+
         handleInitiateApiVersionRequests(updatedNow);
+        /**
+         * 处理超时请求
+         */
         handleTimedOutRequests(responses, updatedNow);
+
         completeResponses(responses);
 
         return responses;

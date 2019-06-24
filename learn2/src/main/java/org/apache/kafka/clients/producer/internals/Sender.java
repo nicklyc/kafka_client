@@ -195,7 +195,7 @@ public class Sender implements Runnable {
 
     /**
      * Run a single iteration of sending
-     *
+     * 被循环调用的  发送消息的方法
      * @param now The current POSIX time in milliseconds
      */
     void run(long now) {

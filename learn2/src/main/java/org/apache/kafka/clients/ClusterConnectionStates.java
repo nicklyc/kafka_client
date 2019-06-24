@@ -25,9 +25,12 @@ import java.util.Map;
 
 /**
  * The state of our connection to each node in the cluster.
+ * 客户端与Kafka集群每个节点的连接状态
  */
 final class ClusterConnectionStates {
+    /** reconnect.backoff.ms */
     private final long reconnectBackoffInitMs;
+    /** reconnect.backoff.max.ms */
     private final long reconnectBackoffMaxMs;
     private final static int RECONNECT_BACKOFF_EXP_BASE = 2;
     private final double reconnectBackoffMaxExp;

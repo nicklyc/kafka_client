@@ -24,6 +24,8 @@ import java.util.Map;
 
 /**
  * An interface for asynchronous, multi-channel network I/O
+ * Kakfa的Selector的抽象接口，实现： 异步，多通道的io
+ * 其实现类Selector就是封装的nioSelector
  */
 public interface Selectable {
 
