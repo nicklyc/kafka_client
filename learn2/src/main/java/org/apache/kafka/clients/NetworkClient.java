@@ -74,7 +74,10 @@ public class NetworkClient implements KafkaClient {
     /** 每一个node的连接状态 **/
     private final ClusterConnectionStates connectionStates;
 
-    /* the set of requests currently being sent or awaiting a response */
+    /**
+     * the set of requests currently being sent or awaiting a response
+     *请求队列 保存正在发送或者还没有收到响应的请求
+     */
     private final InFlightRequests inFlightRequests;
 
     /* the socket send buffer size in bytes */
@@ -344,7 +347,11 @@ public class NetworkClient implements KafkaClient {
     public boolean isReady(Node node, long now) {
         // if we need to update our metadata now declare all requests unready to make metadata requests first
         // priority
-       //是否我们现在需要更新元数据以及该node是否已经可以发送请求
+        /**是否我们现在需要更新元数据，如果需要更新数据，该方法返回false,
+         *
+         * !metadataUpdater.isUpdateDue(now)  现在不需要更新
+         */
+        // 以及该node是否已经可以发送请求
         return !metadataUpdater.isUpdateDue(now) && canSendRequest(node.idString(), now);
     }
 
@@ -485,9 +492,9 @@ public class NetworkClient implements KafkaClient {
         List<ClientResponse> responses = new ArrayList<>();
         //处理完成发送
         handleCompletedSends(responses, updatedNow);
-
+       // 循环selector中的completedReceives列表，逐个处理完成的Receive对象。
         handleCompletedReceives(responses, updatedNow);
-
+        // 循环selector中的disconnected的Map，
         handleDisconnections(responses, updatedNow);
         /**
          *处理connect列表
@@ -857,7 +864,13 @@ public class NetworkClient implements KafkaClient {
         /* the current cluster metadata */
         private final Metadata metadata;
 
-        /* true iff there is a metadata request that has been sent and for which we have not yet received a response */
+        /**
+         * true iff there is a metadata request that has been sent and for which we have not yet received a response
+         *
+         * 更新metadata正在进行中，元数据更新是否结束的一个标志
+         *
+         * 当发送更新metadata的请求已经发出去，处于等待kafka的集群响应则为true.
+         */
         private boolean metadataFetchInProgress;
 
         DefaultMetadataUpdater(Metadata metadata) {
@@ -872,6 +885,7 @@ public class NetworkClient implements KafkaClient {
 
         @Override
         public boolean isUpdateDue(long now) {
+            //没有处于正在更新的过程中，metadata应该更新
             return !this.metadataFetchInProgress && this.metadata.timeToNextUpdate(now) == 0;
         }
 

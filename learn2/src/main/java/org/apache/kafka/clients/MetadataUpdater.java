@@ -42,6 +42,8 @@ public interface MetadataUpdater extends Closeable {
 
     /**
      * Returns true if an update to the cluster metadata info is due.
+     *
+     * metadata 达到了更新时间，并且没有更新的操作正在进行返回true.
      */
     boolean isUpdateDue(long now);
 

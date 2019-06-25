@@ -59,7 +59,8 @@ public final class Metadata implements Closeable {
     public static final long TOPIC_EXPIRY_MS = 5 * 60 * 1000;
     private static final long TOPIC_EXPIRY_NEEDS_UPDATE = -1L;
     /**
-     * 失败重试的最小间隔时间
+     * 刷新重试时间，KafkaProduer 实例化Metadata时候 采用的是 retry.backoff.ms配置
+     * 在这里指的时候  metadata的更新周期，
      */
     private final long refreshBackoffMs;
     /**
@@ -162,10 +163,28 @@ public final class Metadata implements Closeable {
      * The next time to update the cluster info is the maximum of the time the current info will expire and the time the
      * current info can be updated (i.e. backoff time has elapsed); If an update has been request then the expiry time
      * is now
-     * 计算下次更新metadata时间
+     * 计算下次更新metadata时间，这里也就是metadata更新策略：
+     *
+     *   1: 当needUpdate=true时，当前时间 - 上一次更新时间 > refreshBackoffMs 进行更新。
+     *      否则，继续等待到更新周期refreshBackoffMs进行跟新，
+     *
+     *   2:如果needUpdate=false时候，检查metadata是否过期，如果过期了。则对更新周期进行判断。
+     *
+     *   3: refreshBackoffMs使用的是 retry.backoff.ms配置。默认更新周期100毫秒。
+     *
+     *   总结：metadata的更新周期是100ms，过期时间是metadata.max.age.ms，默认60s。
+     *   如果当needUpdate=true，当更新开关打开，并且与上一次更新时间间隔达到100ms以上进行更新，
+     *   在更新开关没有打开的情况下，上一次更新是一个成功的操作，该metadata会缓存metadata.max.age.ms,
+     *   然后数据过期发生更新操作。
+     *
+     *   timeToNextUpdate（nowMs）的返回值就是还剩多久需要进行更新操作。
+     *
      */
+
     public synchronized long timeToNextUpdate(long nowMs) {
+
         long timeToExpire = needUpdate ? 0 : Math.max(this.lastSuccessfulRefreshMs + this.metadataExpireMs - nowMs, 0);
+
         long timeToAllowUpdate = this.lastRefreshMs + this.refreshBackoffMs - nowMs;
         return Math.max(timeToExpire, timeToAllowUpdate);
     }
