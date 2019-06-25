@@ -850,12 +850,14 @@ public class NetworkClient implements KafkaClient {
         String nodeConnectionId = node.idString();
         try {
             log.debug("Initiating connection to node {}", node);
+            //设置连接状态为正在建立连接
             this.connectionStates.connecting(nodeConnectionId, now);
-            //
+            //建立连接
             selector.connect(nodeConnectionId, new InetSocketAddress(node.host(), node.port()), this.socketSendBuffer,
                     this.socketReceiveBuffer);
         } catch (IOException e) {
             /* attempt failed, we'll try again after the backoff */
+            //设置连接状态为断开连接
             connectionStates.disconnected(nodeConnectionId, now);
             /* maybe the problem is our metadata, update it */
             metadataUpdater.requestUpdate();

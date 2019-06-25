@@ -50,6 +50,7 @@ public class PlaintextChannelBuilder implements ChannelBuilder {
      * @param configs
      * @throws KafkaException
      */
+    @Override
     public void configure(Map<String, ?> configs) throws KafkaException {
         this.configs = configs;
     }

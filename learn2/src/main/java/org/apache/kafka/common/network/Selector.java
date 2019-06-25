@@ -210,17 +210,23 @@ public class Selector implements Selectable, AutoCloseable {
      * @throws IOException           if DNS resolution fails on the hostname or if the broker is down
      */
     @Override
-    public void connect(String id, InetSocketAddress address, int sendBufferSize, int receiveBufferSize) throws IOException {
+    public void connect(String id, InetSocketAddress address, int sendBufferSize, int receiveBufferSize)
+        throws IOException {
         ensureNotRegistered(id);
-        /***获得SocketChannel
+        /***
+         * 获得SocketChannel
+         * 
          * 这里使用的无参open,所以这里并没有真正的建立间接
          */
         SocketChannel socketChannel = SocketChannel.open();
         try {
+            // 配置连接
             configureSocketChannel(socketChannel, sendBufferSize, receiveBufferSize);
-           //建立连接
+            // 建立连接
             boolean connected = doConnect(socketChannel, address);
-            /**将socketChannel注册到selector
+            /**
+             * 注册socketChannel 连接事件到selector
+             * 
              * 这里就是经典的nio 网络模型实现
              */
             SelectionKey key = registerChannel(id, socketChannel, SelectionKey.OP_CONNECT);
@@ -228,7 +234,9 @@ public class Selector implements Selectable, AutoCloseable {
             if (connected) {
                 // OP_CONNECT won't trigger for immediately connected channels
                 log.debug("Immediately connected to node {}", id);
+                // 将SelectionKey 维护起来
                 immediatelyConnectedKeys.add(key);
+                // 设置interest集合为 OP_READ
                 key.interestOps(0);
             }
         } catch (IOException | RuntimeException e) {
@@ -254,13 +262,30 @@ public class Selector implements Selectable, AutoCloseable {
 
     private void configureSocketChannel(SocketChannel socketChannel, int sendBufferSize, int receiveBufferSize)
             throws IOException {
+        //非阻塞
         socketChannel.configureBlocking(false);
         Socket socket = socketChannel.socket();
+        /**保持连接状态，可以设置TCP长连接保活
+         *
+         * 通过源码可以知道 最终设置了
+         * SocketOptions.SO_KEEPALIVE
+         *如果2小时内在此套接口的任一方向都没有数据交换，
+         *TCP就自动给对方发一个 keepalive。
+         *
+         * 在一些nio框架中一般都是自定义心跳实现。可以更精细化的配置
+         */
         socket.setKeepAlive(true);
         if (sendBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
+           //设置最大的套接字发送缓冲字节，设置最大发送的buffer大小send.buffer.bytes
             socket.setSendBufferSize(sendBufferSize);
         if (receiveBufferSize != Selectable.USE_DEFAULT_BUFFER_SIZE)
+          // 设置最大接受 的buffer大小 receive.buffer.bytes
             socket.setReceiveBufferSize(receiveBufferSize);
+        /**不采用缓冲区，立即发送 ，实时性更高，
+         * 这里我之前使用网络编程一般使用false,使用缓冲区来提升性能
+         * 但是这里为什么使用true,好像跟延迟ack 有关系？
+         * 这里还有待继续研究
+         */
         socket.setTcpNoDelay(true);
     }
 
@@ -292,15 +317,21 @@ public class Selector implements Selectable, AutoCloseable {
     }
 
     private SelectionKey registerChannel(String id, SocketChannel socketChannel, int interestedOps) throws IOException {
+        // 注册socketChannel事件 到nioSelector
         SelectionKey key = socketChannel.register(nioSelector, interestedOps);
+        // 建立KafkaChannel
         KafkaChannel channel = buildAndAttachKafkaChannel(socketChannel, id, key);
+        // 连接id --> channel维护关系
         this.channels.put(id, channel);
         return key;
     }
 
-    private KafkaChannel buildAndAttachKafkaChannel(SocketChannel socketChannel, String id, SelectionKey key) throws IOException {
+    private KafkaChannel buildAndAttachKafkaChannel(SocketChannel socketChannel, String id, SelectionKey key)
+        throws IOException {
         try {
+            // KafkaChannel构建器构建channel
             KafkaChannel channel = channelBuilder.buildChannel(id, key, maxReceiveSize, memoryPool);
+            // 为channel 绑定SelectionKey
             key.attach(channel);
             return channel;
         } catch (Exception e) {
