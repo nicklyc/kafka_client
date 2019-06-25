@@ -362,6 +362,7 @@ public class NetworkClient implements KafkaClient {
      * @param now  the current timestamp
      */
     private boolean canSendRequest(String node, long now) {
+
         return connectionStates.isReady(node, now) && selector.isChannelReady(node)
                 && inFlightRequests.canSendMore(node);
     }
@@ -842,12 +843,15 @@ public class NetworkClient implements KafkaClient {
 
     /**
      * Initiate a connection to the given node
+     * 对指定的node 初始化连接
      */
     private void initiateConnect(Node node, long now) {
+        //获取nodeId
         String nodeConnectionId = node.idString();
         try {
             log.debug("Initiating connection to node {}", node);
             this.connectionStates.connecting(nodeConnectionId, now);
+            //
             selector.connect(nodeConnectionId, new InetSocketAddress(node.host(), node.port()), this.socketSendBuffer,
                     this.socketReceiveBuffer);
         } catch (IOException e) {

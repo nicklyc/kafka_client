@@ -34,8 +34,14 @@ final class ClusterConnectionStates {
     private final long reconnectBackoffMaxMs;
     private final static int RECONNECT_BACKOFF_EXP_BASE = 2;
     private final double reconnectBackoffMaxExp;
+    /**每个节点的状态 id---> NodeConnectionState */
     private final Map<String, NodeConnectionState> nodeState;
 
+    /***
+     * NetworkClient 初始化的时候 初始化
+     * @param reconnectBackoffMs     reconnect.backoff.ms
+     * @param reconnectBackoffMaxMs  reconnect.backoff.max.ms
+     */
     public ClusterConnectionStates(long reconnectBackoffMs, long reconnectBackoffMaxMs) {
         this.reconnectBackoffInitMs = reconnectBackoffMs;
         this.reconnectBackoffMaxMs = reconnectBackoffMaxMs;
@@ -108,17 +114,25 @@ final class ClusterConnectionStates {
 
     /**
      * Enter the connecting state for the given connection.
+     *初始化连接调用
+     *
+     * 在初始化连接时候 初始化一个指定的node,维护在ClusterConnectionStates 的nodeState中
+     * 标记为正在连接  ConnectionState.CONNECTING
      *
      * @param id  the id of the connection
      * @param now the current time
      */
     public void connecting(String id, long now) {
+        //存在则修改属性，不存则新建一个
         if (nodeState.containsKey(id)) {
             NodeConnectionState node = nodeState.get(id);
+           //最后一次连接时间
             node.lastConnectAttemptMs = now;
+            //正在建立连接
             node.state = ConnectionState.CONNECTING;
         } else {
             nodeState.put(id, new NodeConnectionState(ConnectionState.CONNECTING, now,
+                   //reconnect.backoff.max.ms
                     this.reconnectBackoffInitMs));
         }
     }
@@ -350,8 +364,12 @@ final class ClusterConnectionStates {
         AuthenticationException authenticationException;
         long lastConnectAttemptMs;
         long failedAttempts;
+        //reconnect.backoff.max.ms
         long reconnectBackoffMs;
         // Connection is being throttled if current time < throttleUntilTimeMs.
+        /**
+         * 节流
+         */
         long throttleUntilTimeMs;
 
         public NodeConnectionState(ConnectionState state, long lastConnectAttempt, long reconnectBackoffMs) {
@@ -363,6 +381,7 @@ final class ClusterConnectionStates {
             this.throttleUntilTimeMs = 0;
         }
 
+        @Override
         public String toString() {
             return "NodeState(" + state + ", " + lastConnectAttemptMs + ", " + failedAttempts + ", " + throttleUntilTimeMs + ")";
         }
