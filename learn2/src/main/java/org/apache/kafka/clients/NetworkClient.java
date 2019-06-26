@@ -362,7 +362,7 @@ public class NetworkClient implements KafkaClient {
      * @param now  the current timestamp
      */
     private boolean canSendRequest(String node, long now) {
-    //node的状态被标记为就绪， channel is ready 并且
+    //node的状态被标记为就绪， channel is ready 并且，请求队列可以发送请求
         return connectionStates.isReady(node, now) && selector.isChannelReady(node)
                 && inFlightRequests.canSendMore(node);
     }

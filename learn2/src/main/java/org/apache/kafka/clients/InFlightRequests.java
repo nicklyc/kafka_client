@@ -101,6 +101,16 @@ final class InFlightRequests {
      *
      * @param node Node in question
      * @return true iff we have no requests still being sent to the given node
+     *
+     *         重点在于queue.peekFirst().request().completed，
+     *         即如果发给这个节点的最早的请求还没有发送完成，是不能再往这个节点发送请求的。
+     * 
+     *         从canSendMore方法中也可以看出，
+     *         只要没有超过maxInFlightRequestsPerConnection，一个node可以有多个in-flight request的
+     *
+     *         maxInFlightRequestsPerConnection max.in.flight.requests.per.connection
+     *
+     *
      */
     public boolean canSendMore(String node) {
         Deque<NetworkClient.InFlightRequest> queue = requests.get(node);
