@@ -58,6 +58,7 @@ final class ClusterConnectionStates {
      * @return true if we can initiate a new connection
      */
     public boolean canConnect(String id, long now) {
+        //该连接没有建立，或者连接断开，并且距离最近一次的连接时间超过了重试周期reconnect.backoff.max.ms
         NodeConnectionState state = nodeState.get(id);
         if (state == null)
             return true;

@@ -61,6 +61,7 @@ public class PlaintextChannelBuilder implements ChannelBuilder {
         try {
             PlaintextTransportLayer transportLayer = new PlaintextTransportLayer(key);
             PlaintextAuthenticator authenticator = new PlaintextAuthenticator(configs, transportLayer, listenerName);
+
             return new KafkaChannel(id, transportLayer, authenticator, maxReceiveSize,
                 memoryPool != null ? memoryPool : MemoryPool.NONE);
         } catch (Exception e) {
