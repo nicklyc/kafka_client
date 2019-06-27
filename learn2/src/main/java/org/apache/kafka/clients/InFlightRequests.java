@@ -44,8 +44,10 @@ final class InFlightRequests {
 
     /**
      * Add the given request to the queue for the connection it was directed to
+      添加请求到请求队列
      */
     public void add(NetworkClient.InFlightRequest request) {
+
         String destination = request.destination;
         Deque<NetworkClient.InFlightRequest> reqs = this.requests.get(destination);
         if (reqs == null) {

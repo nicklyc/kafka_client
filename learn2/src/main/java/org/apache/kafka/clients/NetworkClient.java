@@ -371,6 +371,7 @@ public class NetworkClient implements KafkaClient {
      * Queue up the given request for sending. Requests can only be sent out to ready nodes.
      *发送request
      *
+     *Kafka所有发送的东西，最终都会包装成ClientRequest
      * @param request The request
      * @param now     The current timestamp
      */
@@ -432,7 +433,9 @@ public class NetworkClient implements KafkaClient {
     }
 
     private void doSend(ClientRequest clientRequest, boolean isInternalRequest, long now, AbstractRequest request) {
+        //获取要发往的node的id
         String destination = clientRequest.destination();
+        //生成Requestheader对象
         RequestHeader header = clientRequest.makeHeader(request.version());
         if (log.isDebugEnabled()) {
             int latestClientVersion = clientRequest.apiKey().latestVersion();
@@ -444,6 +447,8 @@ public class NetworkClient implements KafkaClient {
                         header.apiVersion(), clientRequest.apiKey(), request, clientRequest.correlationId(), destination);
             }
         }
+
+        //生成待发送的send对象
         Send send = request.toSend(destination, header);
         InFlightRequest inFlightRequest =
                 new InFlightRequest(clientRequest, header, isInternalRequest, request, send, now);

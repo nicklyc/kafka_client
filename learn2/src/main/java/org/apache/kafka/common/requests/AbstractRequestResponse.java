@@ -20,14 +20,20 @@ import org.apache.kafka.common.protocol.types.Struct;
 
 import java.nio.ByteBuffer;
 
+/**
+ * Request和Response 抽象基类
+ */
 public abstract class AbstractRequestResponse {
     /**
      * Visible for testing.
      */
     public static ByteBuffer serialize(Struct headerStruct, Struct bodyStruct) {
+        // 给Struct分配一个内存
         ByteBuffer buffer = ByteBuffer.allocate(headerStruct.sizeOf() + bodyStruct.sizeOf());
+        // 写入到缓存
         headerStruct.writeTo(buffer);
         bodyStruct.writeTo(buffer);
+        // 指针置0
         buffer.rewind();
         return buffer;
     }

@@ -26,12 +26,15 @@ import org.apache.kafka.common.requests.RequestHeader;
 public final class ClientRequest {
 
     private final String destination;
+    /**kafka数据结构*/
     private final AbstractRequest.Builder<?> requestBuilder;
     private final int correlationId;
     private final String clientId;
     private final long createdTimeMs;
+    /**需不需要ack*/
     private final boolean expectResponse;
     private final int requestTimeoutMs;
+
     private final RequestCompletionHandler callback;
 
     /**

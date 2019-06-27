@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 
 /**
  * A serializable type
+ * 序列化类型
  */
 public abstract class Type {
 
@@ -695,6 +696,7 @@ public abstract class Type {
     }
 
     public static void main(String[] args) {
+
         System.out.println(toHtml());
     }
 }
