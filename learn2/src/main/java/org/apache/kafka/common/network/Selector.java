@@ -730,6 +730,7 @@ public class Selector implements Selectable, AutoCloseable {
     /**
      * Check for data, waiting up to the given timeout.
      *
+     * 获取准备好的channel 的key的数量
      * @param timeoutMs Length of time to wait, in milliseconds, which must be non-negative
      * @return The number of keys ready
      */
@@ -738,8 +739,14 @@ public class Selector implements Selectable, AutoCloseable {
             throw new IllegalArgumentException("timeout should be >= 0");
 
         if (timeoutMs == 0L)
+        /** 此方法执行非阻塞selection operation 。
+         * 就是立马返回
+         * 如果以前的选择操作没有频道变为可选择，则该方法立即返回零。
+         * 调用此方法将清除任何先前调用wakeup方法的效果。
+         */
             return this.nioSelector.selectNow();
         else
+            // 此方法执行阻止selection operation 。 只有在选择了至少一个通道之后，才会返回此选择器的wakeup方法，
             return this.nioSelector.select(timeoutMs);
     }
 
