@@ -155,12 +155,14 @@ public class Sender implements Runnable {
      * The main run loop for the sender thread
      */
     public void run() {
-        log.debug("Starting Kafka producer I/O thread.");
-
+        log.info("Starting Kafka producer I/O thread.");
+        System.out.println("Starting Kafka producer I/O thread");
         // main loop, runs until close is called
         while (running) {
+            System.out.println("running");
             try {
                 run(time.milliseconds());
+
             } catch (Exception e) {
                 log.error("Uncaught error in kafka producer I/O thread: ", e);
             }
