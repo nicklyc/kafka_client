@@ -30,6 +30,7 @@ import org.apache.kafka.common.errors.AuthenticationException;
  * SASL handshake. Disconnections in AUTHENTICATE state may indicate that authentication failed with
  * SSL or SASL (broker version < 1.0.0). Channels transition to READY state when authentication completes
  * successfully.</li>
+ * AUTHENTICATE： 认证中的 状态，认证完成 READY 状态
  * <li>READY: Connected, authenticated channels are in READY state. Channels may transition from
  * READY to EXPIRED, FAILED_SEND or LOCAL_CLOSE.</li>
  * <li>EXPIRED: Idle connections are moved to EXPIRED state on idle timeout and the channel is closed.</li>
