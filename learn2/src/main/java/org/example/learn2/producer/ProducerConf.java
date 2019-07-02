@@ -20,6 +20,10 @@ public class ProducerConf {
         Properties properties = new Properties();
         properties.put(org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, url);
         properties.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        //请求最大的超时时间
+        properties.put("request.timeout.ms", 50);
+        //元数据更新周期
+        properties.put("metadata.max.age.ms", 5000);
 
         //自定义拦截器
         properties.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, Interceptor.class.getName());
