@@ -92,7 +92,8 @@ public class NetworkClient implements KafkaClient {
     /* the current correlation id to use when sending requests to servers */
     private int correlation;
 
-    /* default timeout for individual requests to await acknowledgement from servers */
+    /** default timeout for individual requests to await acknowledgement from servers
+     * 等待ack 的默认时间*/
     private final int defaultRequestTimeoutMs;
 
     /* time in ms to wait before retrying to create connection to a server */
@@ -213,6 +214,7 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public boolean ready(Node node, long now) {
+        System.out.println("====ready====");
         if (node.isEmpty())
             throw new IllegalArgumentException("Cannot connect to empty node " + node);
 
@@ -851,6 +853,7 @@ public class NetworkClient implements KafkaClient {
      * 对指定的node 初始化连接
      */
     private void initiateConnect(Node node, long now) {
+        System.out.println("initiateConnect===");
         //获取nodeId
         String nodeConnectionId = node.idString();
         try {
@@ -901,9 +904,18 @@ public class NetworkClient implements KafkaClient {
         }
 
         @Override
+        /**
+         * 更新倒计时，见接口方法注释
+         *
+         * 现依据更新策略进行检查是否需要更新 如果有正在更新的请求，
+         * 那么倒计时就是 request.timeout.ms ,否则进行更新操作
+         * 
+         */
         public long maybeUpdate(long now) {
             // should we update our metadata?
+            // 是否更新
             long timeToNextMetadataUpdate = metadata.timeToNextUpdate(now);
+            // 是否有正在更新的操作
             long waitForMetadataFetch = this.metadataFetchInProgress ? defaultRequestTimeoutMs : 0;
 
             long metadataTimeout = Math.max(timeToNextMetadataUpdate, waitForMetadataFetch);
@@ -911,7 +923,7 @@ public class NetworkClient implements KafkaClient {
             if (metadataTimeout > 0) {
                 return metadataTimeout;
             }
-
+            //
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
             Node node = leastLoadedNode(now);
@@ -919,7 +931,7 @@ public class NetworkClient implements KafkaClient {
                 log.debug("Give up sending metadata request since no node is available");
                 return reconnectBackoffMs;
             }
-
+            // 返回更新操作
             return maybeUpdate(now, node);
         }
 
@@ -1009,17 +1021,20 @@ public class NetworkClient implements KafkaClient {
          */
         private long maybeUpdate(long now, Node node) {
             String nodeConnectionId = node.idString();
-
+            // 可发送数据
             if (canSendRequest(nodeConnectionId, now)) {
+                // 更新正在进行
                 this.metadataFetchInProgress = true;
                 MetadataRequest.Builder metadataRequest;
+                // 是否需要更新所有的topic
                 if (metadata.needMetadataForAllTopics())
                     metadataRequest = MetadataRequest.Builder.allTopics();
                 else
                     metadataRequest = new MetadataRequest.Builder(new ArrayList<>(metadata.topics()),
-                            metadata.allowAutoTopicCreation());
+                        metadata.allowAutoTopicCreation());
 
                 log.debug("Sending metadata request {} to node {}", metadataRequest, node);
+                // 发送更新请求
                 sendInternalMetadataRequest(metadataRequest, nodeConnectionId, now);
                 return defaultRequestTimeoutMs;
             }
@@ -1032,10 +1047,11 @@ public class NetworkClient implements KafkaClient {
                 // have such application level configuration, using reconnect backoff instead.
                 return reconnectBackoffMs;
             }
-
+            // 可连接
             if (connectionStates.canConnect(nodeConnectionId, now)) {
                 // we don't have a connection to this node right now, make one
                 log.debug("Initialize connection to node {} for sending metadata request", node);
+                // 初始化连接
                 initiateConnect(node, now);
                 return reconnectBackoffMs;
             }
