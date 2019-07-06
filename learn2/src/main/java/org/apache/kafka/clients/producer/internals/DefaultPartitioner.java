@@ -28,7 +28,7 @@ import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.utils.Utils;
 
-/**
+/**默认分区策略
  * The default partitioning strategy:
  * <ul>
  * <li>If a partition is specified in the record, use it
@@ -53,12 +53,17 @@ public class DefaultPartitioner implements Partitioner {
      * @param cluster    The current cluster metadata
      */
     public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
+        //获取该topic所有分区
         List<PartitionInfo> partitions = cluster.partitionsForTopic(topic);
         int numPartitions = partitions.size();
+        //key不存在
         if (keyBytes == null) {
+            //获取该topic计数器
             int nextValue = nextValue(topic);
+            //获取可用分区
             List<PartitionInfo> availablePartitions = cluster.availablePartitionsForTopic(topic);
             if (availablePartitions.size() > 0) {
+                //计算一个分区，key不存在的到是可用分区的随机一个
                 int part = Utils.toPositive(nextValue) % availablePartitions.size();
                 return availablePartitions.get(part).partition();
             } else {
@@ -66,14 +71,17 @@ public class DefaultPartitioner implements Partitioner {
                 return Utils.toPositive(nextValue) % numPartitions;
             }
         } else {
+            //key存在，key存在的情况下，每次得到的都是统一分区
             // hash the keyBytes to choose a partition
             return Utils.toPositive(Utils.murmur2(keyBytes)) % numPartitions;
         }
     }
 
     private int nextValue(String topic) {
+        //计数器
         AtomicInteger counter = topicCounterMap.get(topic);
         if (null == counter) {
+            //随机产生一个随机数
             counter = new AtomicInteger(ThreadLocalRandom.current().nextInt());
             AtomicInteger currentCounter = topicCounterMap.putIfAbsent(topic, counter);
             if (currentCounter != null) {
