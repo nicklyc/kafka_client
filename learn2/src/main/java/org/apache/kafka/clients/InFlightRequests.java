@@ -47,14 +47,17 @@ final class InFlightRequests {
       添加请求到请求队列
      */
     public void add(NetworkClient.InFlightRequest request) {
-
+        //目的地
         String destination = request.destination;
+        //获取目的地请求队列
         Deque<NetworkClient.InFlightRequest> reqs = this.requests.get(destination);
         if (reqs == null) {
             reqs = new ArrayDeque<>();
             this.requests.put(destination, reqs);
         }
+        //向头部添加请求
         reqs.addFirst(request);
+        //请求消息个数+1，
         inFlightRequestCount.incrementAndGet();
     }
 
