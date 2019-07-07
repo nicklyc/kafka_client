@@ -36,18 +36,36 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
  * In either of the cases above, the timestamp that has actually been used will be returned to user in
  * {@link RecordMetadata}
  */
+
+/**
+ * 发送给Kafka的消息对象
+ *
+ * 如果消息中指定了分区号，则使用分区号，否则由分区器计算出分区号具体计算规则 参照@DefaultPartitioner 的 partition方法
+ * 
+ * @param <K>
+ * @param <V>
+ */
 public class ProducerRecord<K, V> {
 
     private final String topic;
+    /** 分区号 可选 */
     private final Integer partition;
+    /** 消息头 */
     private final Headers headers;
+    /** key值：可选 */
     private final K key;
+    /** 生产者真正要发布的消息内容 */
     private final V value;
+    /**timestamp字段指定时间戳：
+     * 如果用户没有指定该字段，则其会有生产者自动填充。而其最终的值是由topic中指定的时间戳类型来决定的，
+     * 如果指定为创建时间，则该值由生产者客户端填写；
+     * 如果指定为日志追加时间，则该值会由broker在将消息记录持久化后用当前时间进行覆盖。**/
     private final Long timestamp;
 
     /**
      * Creates a record with a specified timestamp to be sent to a specified topic and partition
      *
+     * 创建消息的核心构造方法
      * @param topic The topic the record will be appended to
      * @param partition The partition to which the record should be sent
      * @param timestamp The timestamp of the record, in milliseconds since epoch. If null, the producer will assign the
