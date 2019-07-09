@@ -48,6 +48,11 @@ public interface MetadataUpdater extends Closeable {
     boolean isUpdateDue(long now);
 
     /**
+     * metadata  是否需要更新，此方法返回的是元数据更新的倒计时
+     *
+     * 返回值是0 就是需要更新，其他大于0的数，就是还需要多久更新
+     *
+     *
      * Starts a cluster metadata update if needed and possible. Returns the time until the metadata update (which would
      * be 0 if an update has been started as a result of this call).
      * <p>

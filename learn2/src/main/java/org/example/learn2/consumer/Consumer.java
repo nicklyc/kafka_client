@@ -21,7 +21,7 @@ public class Consumer {
         consumer.subscribe(Collections.singletonList(ConsumerConf.topic));
         while (true) {
             System.out.println("拉取消息一次");
-            ConsumerRecords<String, Object> records = consumer.poll(1000);
+            ConsumerRecords<String, Object> records = consumer.poll(5000);
             handleMess(records);
         }
 

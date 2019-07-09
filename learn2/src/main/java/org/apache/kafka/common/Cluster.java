@@ -238,8 +238,10 @@ public final class Cluster {
      *
      * @param topic The topic name
      * @return A list of partitions
+     * 计算指定topic的所有分区
      */
     public List<PartitionInfo> partitionsForTopic(String topic) {
+        //
         List<PartitionInfo> parts = this.partitionsByTopic.get(topic);
         return (parts == null) ? Collections.<PartitionInfo>emptyList() : parts;
     }

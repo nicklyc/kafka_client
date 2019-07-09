@@ -11,10 +11,12 @@ import java.util.List;
  * @author
  * @date 2019/6/15
  */
+
 public class KafkaMessage implements Serializable {
     private String id;
-    private Long value;
-    //.....其他属性
+    // 消息对象
+    private Message message;
+    // .....其他属性
 
     public String getId() {
         return id;
@@ -24,13 +26,30 @@ public class KafkaMessage implements Serializable {
         this.id = id;
     }
 
-    public Long getValue() {
-        return value;
+    public Message getMessage() {
+        return message;
     }
 
-    public void setValue(Long value) {
-        this.value = value;
+    public void setMessage(Message message) {
+        this.message = message;
     }
 
+    public class Message implements Serializable {
+
+        public Long getValue() {
+            return value;
+        }
+
+        public void setValue(Long value) {
+            this.value = value;
+        }
+
+        private Long value;
+        // ....其他属性
+    }
+
+    public Message builder() {
+        return new Message();
+    }
 
 }

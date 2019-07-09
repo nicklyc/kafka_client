@@ -1166,6 +1166,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 //等待更新cluster信息的阻塞方法
                 metadata.awaitUpdate(version, remainingWaitMs);
             } catch (TimeoutException ex) {
+               log.info("更新数据超时");
                 // Rethrow with original maxWaitMs to prevent logging exception with remainingWaitMs
                 throw new TimeoutException("Failed to update metadata after " + maxWaitMs + " ms.");
             }

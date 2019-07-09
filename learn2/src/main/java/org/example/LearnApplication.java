@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author maochao
  * @date 2019/6/19
  */
-@SpringBootApplication
+//@SpringBootApplication
 public class LearnApplication {
 
     public static void main(String[] args) {

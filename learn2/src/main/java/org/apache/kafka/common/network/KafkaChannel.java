@@ -153,9 +153,15 @@ public class KafkaChannel {
         return this.state;
     }
 
+    /**
+     * 检查连接是否建立完成
+     * @return
+     * @throws IOException
+     */
     public boolean finishConnect() throws IOException {
         boolean connected = transportLayer.finishConnect();
         if (connected)
+            //标记状态，连接建立完成，如果不是ready,则是在认证中
             state = ready() ? ChannelState.READY : ChannelState.AUTHENTICATE;
         return connected;
     }
@@ -259,6 +265,12 @@ public class KafkaChannel {
         return transportLayer.ready();
     }
 
+    /**
+     * Channel是否ready,
+     * PlaintextTransportLayer 默认建立连接就是ready
+     * 采用PLAINTEXT 协议不用认证，默认是true
+     * @return
+     */
     public boolean ready() {
         return transportLayer.ready() && authenticator.complete();
     }
