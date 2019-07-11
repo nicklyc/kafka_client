@@ -992,6 +992,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
     /**
      * 将消息追加到RecordAccumulator缓存队列，并唤醒sender线程
+     * 
      * @param record
      * @param callback
      * @return
@@ -1001,10 +1002,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         try {
             throwIfProducerClosed();
             // first make sure the metadata for the topic is available
-            //在数据发送前，需要先该 topic 是可用的
+            // 在数据发送前，需要先该 topic 是可用的
             ClusterAndWaitTime clusterAndWaitTime;
             try {
-                /**等待metadata的更新
+                /**
+                 * 等待metadata的更新
                  *
                  * 这里就是更新的是Kafka的Cluster的信息，还有包括一些对应关系，关联联系，和一些逻辑数据
                  */
@@ -1015,9 +1017,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 throw e;
             }
             long remainingWaitMs = Math.max(0, maxBlockTimeMs - clusterAndWaitTime.waitedOnMetadataMs);
+            // 获取Cluster数据
             Cluster cluster = clusterAndWaitTime.cluster;
             byte[] serializedKey;
             try {
+                // 序列化key
                 serializedKey = keySerializer.serialize(record.topic(), record.headers(), record.key());
             } catch (ClassCastException cce) {
                 throw new SerializationException("Can't convert key of class " + record.key().getClass().getName()
@@ -1026,30 +1030,34 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             }
             byte[] serializedValue;
             try {
+                // 序列化value
                 serializedValue = valueSerializer.serialize(record.topic(), record.headers(), record.value());
             } catch (ClassCastException cce) {
                 throw new SerializationException("Can't convert value of class " + record.value().getClass().getName()
                     + " to class " + producerConfig.getClass(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG).getName()
                     + " specified in value.serializer", cce);
             }
+            // 计算分区号
             int partition = partition(record, serializedKey, serializedValue, cluster);
             tp = new TopicPartition(record.topic(), partition);
-
+            //设置消息头为只读
             setReadOnly(record.headers());
             Header[] headers = record.headers().toArray();
-
+            //估算消息大小
             int serializedSize = AbstractRecords.estimateSizeInBytesUpperBound(apiVersions.maxUsableProduceMagic(),
                 compressionType, serializedKey, serializedValue, headers);
+            // 校验消息数据大小
             ensureValidRecordSize(serializedSize);
             long timestamp = record.timestamp() == null ? time.milliseconds() : record.timestamp();
             log.trace("Sending record {} with callback {} to topic {} partition {}", record, callback, record.topic(),
                 partition);
             // producer callback will make sure to call both 'callback' and interceptor callback
+            // 拦截器回调函数
             Callback interceptCallback = new InterceptorCallback<>(callback, this.interceptors, tp);
 
             if (transactionManager != null && transactionManager.isTransactional())
                 transactionManager.maybeAddPartitionToTransaction(tp);
-
+            // 追加消息到RecordAccumulator缓存
             RecordAccumulator.RecordAppendResult result = accumulator.append(tp, timestamp, serializedKey,
                 serializedValue, headers, interceptCallback, remainingWaitMs);
             if (result.batchIsFull || result.newBatchCreated) {
@@ -1159,6 +1167,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         do {
             log.trace("Requesting metadata update for topic {}.", topic);
             metadata.add(topic);
+            //获取版本号，并且设置将更新标志设置为true this.needUpdate = true;
             int version = metadata.requestUpdate();
             //唤醒sender线程
             sender.wakeup();
@@ -1388,7 +1397,9 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      * partitioner class to compute the partition.
      */
     private int partition(ProducerRecord<K, V> record, byte[] serializedKey, byte[] serializedValue, Cluster cluster) {
+       //获取消息的分区号
         Integer partition = record.partition();
+        //如果消息指定了分区号则使用消息分区号，否则使用分区器进行分区号计算
         return partition != null ? partition : partitioner.partition(record.topic(), record.key(), serializedKey,
             record.value(), serializedValue, cluster);
     }
@@ -1462,9 +1473,11 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             this.tp = tp;
         }
 
+        @Override
         public void onCompletion(RecordMetadata metadata, Exception exception) {
             metadata = metadata != null ? metadata
                 : new RecordMetadata(tp, -1, -1, RecordBatch.NO_TIMESTAMP, Long.valueOf(-1L), -1, -1);
+            // 依次调用拦截器的ack方法，其次调用Callback ack
             this.interceptors.onAcknowledgement(metadata, exception);
             if (this.userCallback != null)
                 this.userCallback.onCompletion(metadata, exception);
