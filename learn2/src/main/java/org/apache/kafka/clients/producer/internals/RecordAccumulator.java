@@ -72,33 +72,37 @@ public final class RecordAccumulator {
 
     private final Logger log;
     /**
+     * 关闭的标志
      * 缓存开关，当关闭的时候，消息不能追加到缓存中
      */
     private volatile boolean closed;
     /**
-     * flush的线程计数器
+     * flush的计数器
      */
     private final AtomicInteger flushesInProgress;
     /**
-     * 追加消息的线程计数器
+     * appends过程计数器
      */
     private final AtomicInteger appendsInProgress;
     /**
-     * 批量发送消息的size
+     * 批量发送消息的size -->配置batch.size
      */
     private final int batchSize;
     /**
-     * 消息压缩方式
+     * 消息压缩方式-->compression.type
      */
     private final CompressionType compression;
     /**
-     * 延时发送毫秒数
+     * 延时发送毫秒数-->linger.ms
      */
     private final long lingerMs;
     /**
      * 重试重试间隔时间
      */
     private final long retryBackoffMs;
+    /**
+     * Buffer池
+     */
     private final BufferPool free;
     private final Time time;
     private final ApiVersions apiVersions;
@@ -106,16 +110,19 @@ public final class RecordAccumulator {
      * 缓存队列
      * RecordAccumulator的核心数据，就是将消息按照分区进行分类存放在ConcurrentMap容器中
      * key：分区包装对象 TopicPartition
-     * value: 消息队列，Deque<ProducerBatch> 
+     * value: 消息双端队列，Deque<ProducerBatch>
      */
     private final ConcurrentMap<TopicPartition, Deque<ProducerBatch>> batches;
     /**
-     * 未收到ack的消息
+     * 未发送完成的ProducerBatch集合
      */
     private final IncompleteBatches incomplete;
     // The following variables are only accessed by the sender thread, so we don't need to protect them.
     private final Map<TopicPartition, Long> muted;
-   
+    /**
+     * 索引
+     * 记录上次发送停止时的位置.
+     */
     private int drainIndex;
     
     private final TransactionManager transactionManager;
@@ -213,18 +220,15 @@ public final class RecordAccumulator {
      * @param callback       The user-supplied callback to execute when the request is complete
      * @param maxTimeToBlock The maximum time in milliseconds to block for buffer memory to be available
      */
-    public RecordAppendResult append(TopicPartition tp,
-                                     long timestamp,
-                                     byte[] key,
-                                     byte[] value,
-                                     Header[] headers,
-                                     Callback callback,
-                                     long maxTimeToBlock) throws InterruptedException {
+    public RecordAppendResult append(TopicPartition tp, long timestamp, byte[] key, byte[] value, Header[] headers,
+        Callback callback, long maxTimeToBlock) throws InterruptedException {
         // We keep track of the number of appending thread to make sure we do not miss batches in
         // abortIncompleteBatches().
+        // 线程数计数器
         appendsInProgress.incrementAndGet();
         ByteBuffer buffer = null;
-        if (headers == null) headers = Record.EMPTY_HEADERS;
+        if (headers == null)
+            headers = Record.EMPTY_HEADERS;
         try {
             // check if we have an in-progress batch
             Deque<ProducerBatch> dq = getOrCreateDeque(tp);
@@ -238,8 +242,10 @@ public final class RecordAccumulator {
 
             // we don't have an in-progress record batch try to allocate a new batch
             byte maxUsableMagic = apiVersions.maxUsableProduceMagic();
-            int size = Math.max(this.batchSize, AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
-            log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(), tp.partition());
+            int size = Math.max(this.batchSize,
+                AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
+            log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(),
+                tp.partition());
             buffer = free.allocate(size, maxTimeToBlock);
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
@@ -248,13 +254,15 @@ public final class RecordAccumulator {
 
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, headers, callback, dq);
                 if (appendResult != null) {
-                    // Somebody else found us a batch, return the one we waited for! Hopefully this doesn't happen often...
+                    // Somebody else found us a batch, return the one we waited for! Hopefully this doesn't happen
+                    // often...
                     return appendResult;
                 }
 
                 MemoryRecordsBuilder recordsBuilder = recordsBuilder(buffer, maxUsableMagic);
                 ProducerBatch batch = new ProducerBatch(tp, recordsBuilder, time.milliseconds());
-                FutureRecordMetadata future = Utils.notNull(batch.tryAppend(timestamp, key, value, headers, callback, time.milliseconds()));
+                FutureRecordMetadata future =
+                    Utils.notNull(batch.tryAppend(timestamp, key, value, headers, callback, time.milliseconds()));
 
                 dq.addLast(batch);
                 incomplete.add(batch);
