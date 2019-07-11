@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.apache.kafka.clients.producer.internals;
 
@@ -23,17 +19,21 @@ import org.apache.kafka.common.record.RecordBatch;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * A class that models the future completion of a produce request for a single partition. There is one of these per
  * partition in a produce request and it is shared by all the {@link RecordMetadata} instances that are batched together
  * for the same partition in the request.
+ * RequestResult Fruture
  */
 public final class ProduceRequestResult {
 
     private final CountDownLatch latch = new CountDownLatch(1);
     private final TopicPartition topicPartition;
-
+    /**
+     * 分区会为记录的消息分配一个offset并通过此offset维护消息顺序。
+     *
+     * baseOffset表示服务端为此RecordBatch中第一条消息分配的offset， 每个信息可以根据baseOffset 和自身在此RecordBatch中的相对偏移量，计算出其在服务器端分区中的偏移量了。
+     */
     private volatile Long baseOffset = null;
     private volatile long logAppendTime = RecordBatch.NO_TIMESTAMP;
     private volatile RuntimeException error;
@@ -50,9 +50,9 @@ public final class ProduceRequestResult {
     /**
      * Set the result of the produce request.
      *
-     * @param baseOffset    The base offset assigned to the record
+     * @param baseOffset The base offset assigned to the record
      * @param logAppendTime The log append time or -1 if CreateTime is being used
-     * @param error         The error that occurred if there was one, or null
+     * @param error The error that occurred if there was one, or null
      */
     public void set(long baseOffset, long logAppendTime, RuntimeException error) {
         this.baseOffset = baseOffset;
@@ -80,7 +80,7 @@ public final class ProduceRequestResult {
      * Await the completion of this request (up to the given time interval)
      *
      * @param timeout The maximum time to wait
-     * @param unit    The unit for the max time
+     * @param unit The unit for the max time
      * @return true if the request completed, false if we timed out
      */
     public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
