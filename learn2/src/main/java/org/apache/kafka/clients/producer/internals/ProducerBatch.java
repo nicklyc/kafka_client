@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.apache.kafka.clients.producer.internals;
 
@@ -56,24 +52,53 @@ public final class ProducerBatch {
 
     private static final Logger log = LoggerFactory.getLogger(ProducerBatch.class);
 
-    private enum FinalState {ABORTED, FAILED, SUCCEEDED}
+    private enum FinalState {
+        ABORTED, FAILED, SUCCEEDED
+    }
 
     final long createdMs;
+    /**
+     * topicPartition：分区对象
+     * 表示的是该组消息 ProducerBatch 发往的该主题分区
+     */
     final TopicPartition topicPartition;
+
     final ProduceRequestResult produceFuture;
 
+    /**
+     * thunks字段可以理解为消息的回调对象队列，
+     * Thunk中持有 callback字段指向对应消息的Callback对象，
+     * 和FutureRecordMetadata
+     */
     private final List<Thunk> thunks = new ArrayList<>();
     private final MemoryRecordsBuilder recordsBuilder;
+    /**
+     * 尝试次数
+     */
     private final AtomicInteger attempts = new AtomicInteger(0);
     private final boolean isSplitBatch;
     private final AtomicReference<FinalState> finalState = new AtomicReference<>(null);
-
+    /**
+     * record计数器，记录RecordBatch中的record个数
+     */
     int recordCount;
+    /**
+     * 最大Record的size byte
+     */
     int maxRecordSize;
+    /**
+     * 上一次尝试发送的时间戳
+     */
     private long lastAttemptMs;
+    /**
+     * 最后一次向RecordBatch append record的时间戳
+     */
     private long lastAppendTime;
     private long drainedMs;
     private String expiryErrorMessage;
+    /**
+     * 状态标记 是否正在重试发送消息中.. 当消息发送失败，会引发重试，重试中标记为true
+     */
     private boolean retry;
     private boolean reopened = false;
 
@@ -90,8 +115,8 @@ public final class ProducerBatch {
         this.produceFuture = new ProduceRequestResult(topicPartition);
         this.retry = false;
         this.isSplitBatch = isSplitBatch;
-        float compressionRatioEstimation = CompressionRatioEstimator.estimation(topicPartition.topic(),
-                recordsBuilder.compressionType());
+        float compressionRatioEstimation =
+            CompressionRatioEstimator.estimation(topicPartition.topic(), recordsBuilder.compressionType());
         recordsBuilder.setEstimatedCompressionRatio(compressionRatioEstimation);
     }
 
@@ -100,18 +125,17 @@ public final class ProducerBatch {
      *
      * @return The RecordSend corresponding to this record or null if there isn't sufficient room.
      */
-    public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers, Callback callback, long now) {
+    public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers, Callback callback,
+        long now) {
         if (!recordsBuilder.hasRoomFor(timestamp, key, value, headers)) {
             return null;
         } else {
             Long checksum = this.recordsBuilder.append(timestamp, key, value, headers);
             this.maxRecordSize = Math.max(this.maxRecordSize, AbstractRecords.estimateSizeInBytesUpperBound(magic(),
-                    recordsBuilder.compressionType(), key, value, headers));
+                recordsBuilder.compressionType(), key, value, headers));
             this.lastAppendTime = now;
-            FutureRecordMetadata future = new FutureRecordMetadata(this.produceFuture, this.recordCount,
-                    timestamp, checksum,
-                    key == null ? -1 : key.length,
-                    value == null ? -1 : value.length);
+            FutureRecordMetadata future = new FutureRecordMetadata(this.produceFuture, this.recordCount, timestamp,
+                checksum, key == null ? -1 : key.length, value == null ? -1 : value.length);
             // we have to keep every future returned to the users in case the batch needs to be
             // split to several new batches and resent.
             thunks.add(new Thunk(callback, future));
@@ -132,11 +156,10 @@ public final class ProducerBatch {
             // No need to get the CRC.
             this.recordsBuilder.append(timestamp, key, value, headers);
             this.maxRecordSize = Math.max(this.maxRecordSize, AbstractRecords.estimateSizeInBytesUpperBound(magic(),
-                    recordsBuilder.compressionType(), key, value, headers));
-            FutureRecordMetadata future = new FutureRecordMetadata(this.produceFuture, this.recordCount,
-                    timestamp, thunk.future.checksumOrNull(),
-                    key == null ? -1 : key.remaining(),
-                    value == null ? -1 : value.remaining());
+                recordsBuilder.compressionType(), key, value, headers));
+            FutureRecordMetadata future =
+                new FutureRecordMetadata(this.produceFuture, this.recordCount, timestamp, thunk.future.checksumOrNull(),
+                    key == null ? -1 : key.remaining(), value == null ? -1 : value.remaining());
             // Chain the future to the original thunk.
             thunk.future.chain(future);
             this.thunks.add(thunk);
@@ -161,9 +184,9 @@ public final class ProducerBatch {
     /**
      * Complete the request. If the batch was previously aborted, this is a no-op.
      *
-     * @param baseOffset    The base offset of the messages assigned by the server
+     * @param baseOffset The base offset of the messages assigned by the server
      * @param logAppendTime The log append time or -1 if CreateTime is being used
-     * @param exception     The exception that occurred (or null if the request was successful)
+     * @param exception The exception that occurred (or null if the request was successful)
      * @return true if the batch was completed successfully and false if the batch was previously aborted
      */
     public boolean done(long baseOffset, long logAppendTime, RuntimeException exception) {
@@ -181,7 +204,8 @@ public final class ProducerBatch {
                 log.debug("ProduceResponse returned for {} after batch had already been aborted.", topicPartition);
                 return false;
             } else {
-                throw new IllegalStateException("Batch has already been completed in final state " + this.finalState.get());
+                throw new IllegalStateException(
+                    "Batch has already been completed in final state " + this.finalState.get());
             }
         }
 
@@ -205,7 +229,8 @@ public final class ProducerBatch {
                         thunk.callback.onCompletion(null, exception);
                 }
             } catch (Exception e) {
-                log.error("Error executing user-provided callback on message for topic-partition '{}'", topicPartition, e);
+                log.error("Error executing user-provided callback on message for topic-partition '{}'", topicPartition,
+                    e);
             }
         }
 
@@ -222,8 +247,8 @@ public final class ProducerBatch {
 
         RecordBatch recordBatch = recordBatchIter.next();
         if (recordBatch.magic() < MAGIC_VALUE_V2 && !recordBatch.isCompressed())
-            throw new IllegalArgumentException("Batch splitting cannot be used with non-compressed messages " +
-                    "with version v0 and v1");
+            throw new IllegalArgumentException(
+                "Batch splitting cannot be used with non-compressed messages " + "with version v0 and v1");
 
         if (recordBatchIter.hasNext())
             throw new IllegalArgumentException("A producer batch should only have one record batch.");
@@ -267,14 +292,14 @@ public final class ProducerBatch {
 
     private ProducerBatch createBatchOffAccumulatorForRecord(Record record, int batchSize) {
         int initialSize = Math.max(AbstractRecords.estimateSizeInBytesUpperBound(magic(),
-                recordsBuilder.compressionType(), record.key(), record.value(), record.headers()), batchSize);
+            recordsBuilder.compressionType(), record.key(), record.value(), record.headers()), batchSize);
         ByteBuffer buffer = ByteBuffer.allocate(initialSize);
 
         // Note that we intentionally do not set producer state (producerId, epoch, sequence, and isTransactional)
         // for the newly created batch. This will be set when the batch is dequeued for sending (which is consistent
         // with how normal batches are handled).
-        MemoryRecordsBuilder builder = MemoryRecords.builder(buffer, magic(), recordsBuilder.compressionType(),
-                TimestampType.CREATE_TIME, 0L);
+        MemoryRecordsBuilder builder =
+            MemoryRecords.builder(buffer, magic(), recordsBuilder.compressionType(), TimestampType.CREATE_TIME, 0L);
         return new ProducerBatch(topicPartition, builder, this.createdMs, true);
     }
 
@@ -303,8 +328,8 @@ public final class ProducerBatch {
     /**
      * A batch whose metadata is not available should be expired if one of the following is true:
      * <ol>
-     * <li> the batch is not in retry AND request timeout has elapsed after it is ready (full or linger.ms has reached).
-     * <li> the batch is in retry AND request timeout has elapsed after the backoff period ended.
+     * <li>the batch is not in retry AND request timeout has elapsed after it is ready (full or linger.ms has reached).
+     * <li>the batch is in retry AND request timeout has elapsed after the backoff period ended.
      * </ol>
      * This methods closes this batch and sets {@code expiryErrorMessage} if the batch has timed out.
      */
@@ -312,9 +337,11 @@ public final class ProducerBatch {
         if (!this.inRetry() && isFull && requestTimeoutMs < (now - this.lastAppendTime))
             expiryErrorMessage = (now - this.lastAppendTime) + " ms has passed since last append";
         else if (!this.inRetry() && requestTimeoutMs < (createdTimeMs(now) - lingerMs))
-            expiryErrorMessage = (createdTimeMs(now) - lingerMs) + " ms has passed since batch creation plus linger time";
+            expiryErrorMessage =
+                (createdTimeMs(now) - lingerMs) + " ms has passed since batch creation plus linger time";
         else if (this.inRetry() && requestTimeoutMs < (waitedTimeMs(now) - retryBackoffMs))
-            expiryErrorMessage = (waitedTimeMs(now) - retryBackoffMs) + " ms has passed since last attempt plus backoff time";
+            expiryErrorMessage =
+                (waitedTimeMs(now) - retryBackoffMs) + " ms has passed since last attempt plus backoff time";
 
         boolean expired = expiryErrorMessage != null;
         if (expired)
@@ -323,15 +350,16 @@ public final class ProducerBatch {
     }
 
     /**
-     * If {@link #maybeExpire(int, long, long, long, boolean)} returned true, the sender will fail the batch with
-     * the exception returned by this method.
+     * If {@link #maybeExpire(int, long, long, long, boolean)} returned true, the sender will fail the batch with the
+     * exception returned by this method.
      *
      * @return An exception indicating the batch expired.
      */
     TimeoutException timeoutException() {
         if (expiryErrorMessage == null)
             throw new IllegalStateException("Batch has not expired");
-        return new TimeoutException("Expiring " + recordCount + " record(s) for " + topicPartition + ": " + expiryErrorMessage);
+        return new TimeoutException(
+            "Expiring " + recordCount + " record(s) for " + topicPartition + ": " + expiryErrorMessage);
     }
 
     int attempts() {
@@ -389,12 +417,14 @@ public final class ProducerBatch {
     }
 
     public void setProducerState(ProducerIdAndEpoch producerIdAndEpoch, int baseSequence, boolean isTransactional) {
-        recordsBuilder.setProducerState(producerIdAndEpoch.producerId, producerIdAndEpoch.epoch, baseSequence, isTransactional);
+        recordsBuilder.setProducerState(producerIdAndEpoch.producerId, producerIdAndEpoch.epoch, baseSequence,
+            isTransactional);
     }
 
     public void resetProducerState(ProducerIdAndEpoch producerIdAndEpoch, int baseSequence, boolean isTransactional) {
         reopened = true;
-        recordsBuilder.reopenAndRewriteProducerState(producerIdAndEpoch.producerId, producerIdAndEpoch.epoch, baseSequence, isTransactional);
+        recordsBuilder.reopenAndRewriteProducerState(producerIdAndEpoch.producerId, producerIdAndEpoch.epoch,
+            baseSequence, isTransactional);
     }
 
     /**
@@ -408,19 +438,17 @@ public final class ProducerBatch {
     public void close() {
         recordsBuilder.close();
         if (!recordsBuilder.isControlBatch()) {
-            CompressionRatioEstimator.updateEstimation(topicPartition.topic(),
-                    recordsBuilder.compressionType(),
-                    (float) recordsBuilder.compressionRatio());
+            CompressionRatioEstimator.updateEstimation(topicPartition.topic(), recordsBuilder.compressionType(),
+                (float)recordsBuilder.compressionRatio());
         }
         reopened = false;
     }
 
     /**
-     * Abort the record builder and reset the state of the underlying buffer. This is used prior to aborting
-     * the batch with {@link #abort(RuntimeException)} and ensures that no record previously appended can be
-     * read. This is used in scenarios where we want to ensure a batch ultimately gets aborted, but in which
-     * it is not safe to invoke the completion callbacks (e.g. because we are holding a lock,
-     * {@link RecordAccumulator#abortBatches()}).
+     * Abort the record builder and reset the state of the underlying buffer. This is used prior to aborting the batch
+     * with {@link #abort(RuntimeException)} and ensures that no record previously appended can be read. This is used in
+     * scenarios where we want to ensure a batch ultimately gets aborted, but in which it is not safe to invoke the
+     * completion callbacks (e.g. because we are holding a lock, {@link RecordAccumulator#abortBatches()}).
      */
     public void abortRecordAppends() {
         recordsBuilder.abort();
