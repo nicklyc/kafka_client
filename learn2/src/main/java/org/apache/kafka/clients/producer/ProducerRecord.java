@@ -57,7 +57,7 @@ public class ProducerRecord<K, V> {
     /** 生产者真正要发布的消息内容 */
     private final V value;
     /**timestamp字段指定时间戳：
-     * 如果用户没有指定该字段，则其会有生产者自动填充。而其最终的值是由topic中指定的时间戳类型来决定的，
+     * 如果用户没有指定该字段，则其会有生产者自动填充System.currentTimeMillis()。而其最终的值是由topic中指定的时间戳类型来决定的，
      * 如果指定为创建时间，则该值由生产者客户端填写；
      * 如果指定为日志追加时间，则该值会由broker在将消息记录持久化后用当前时间进行覆盖。**/
     private final Long timestamp;
