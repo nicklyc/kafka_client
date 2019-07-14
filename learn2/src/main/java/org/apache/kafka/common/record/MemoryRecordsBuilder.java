@@ -538,6 +538,7 @@ public class MemoryRecordsBuilder {
      * @return CRC of the record or null if record-level CRC is not supported for the message format
      */
     public Long append(long timestamp, byte[] key, byte[] value, Header[] headers) {
+        //这个缓冲区的数据会存放在byte数组中，bytes数组或buff缓冲区任何一方中数据的改动都会影响另一方
         return append(timestamp, wrapNullable(key), wrapNullable(value), headers);
     }
 
