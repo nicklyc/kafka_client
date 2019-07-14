@@ -231,12 +231,21 @@ public final class RecordAccumulator {
             headers = Record.EMPTY_HEADERS;
         try {
             // check if we have an in-progress batch
+            /**
+             * 1 获取该消息发往的分区 对应的队列 如果不存咋 就新建一个
+             */
             Deque<ProducerBatch> dq = getOrCreateDeque(tp);
             synchronized (dq) {
                 if (closed)
                     throw new KafkaException("Producer closed while send in progress");
+                /**
+                 * 2 尝试加入队列中
+                 */
                 RecordAppendResult appendResult = tryAppend(timestamp, key, value, headers, callback, dq);
                 if (appendResult != null)
+                    /**
+                     * 加入成功
+                     */
                     return appendResult;
             }
 
@@ -246,6 +255,9 @@ public final class RecordAccumulator {
                 AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
             log.trace("Allocating a new {} byte message buffer for topic {} partition {}", size, tp.topic(),
                 tp.partition());
+            /**
+             * 3 按照 batch.size或者消息的最大size 加入失败，新开辟一个buffer
+             */
             buffer = free.allocate(size, maxTimeToBlock);
             synchronized (dq) {
                 // Need to check if producer is closed again after grabbing the dequeue lock.
@@ -260,11 +272,13 @@ public final class RecordAccumulator {
                 }
 
                 MemoryRecordsBuilder recordsBuilder = recordsBuilder(buffer, maxUsableMagic);
+                // 新建一个ProducerBatch
                 ProducerBatch batch = new ProducerBatch(tp, recordsBuilder, time.milliseconds());
                 FutureRecordMetadata future =
                     Utils.notNull(batch.tryAppend(timestamp, key, value, headers, callback, time.milliseconds()));
-
+                // 将消息batch加入到队列尾部
                 dq.addLast(batch);
+                // 将消息放到IncompleteBatches Set集合中
                 incomplete.add(batch);
 
                 // Don't deallocate this buffer in the finally block as it's being used in the record batch
@@ -297,8 +311,10 @@ public final class RecordAccumulator {
      */
     private RecordAppendResult tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers,
                                          Callback callback, Deque<ProducerBatch> deque) {
+        //取出队列尾部的ProducerBatch
         ProducerBatch last = deque.peekLast();
         if (last != null) {
+            //调用了ProducerBatch的tryAppend方法
             FutureRecordMetadata future = last.tryAppend(timestamp, key, value, headers, callback, time.milliseconds());
             if (future == null)
                 last.closeForRecordAppends();
@@ -643,6 +659,7 @@ public final class RecordAccumulator {
 
     /**
      * Get the deque for the given topic-partition, creating it if necessary.
+     * 获取该topic 分区的 的缓存队列，如果没有则新建一个
      */
     private Deque<ProducerBatch> getOrCreateDeque(TopicPartition tp) {
         Deque<ProducerBatch> d = this.batches.get(tp);
@@ -802,8 +819,11 @@ public final class RecordAccumulator {
      * Metadata about a record just appended to the record accumulator
      */
     public final static class RecordAppendResult {
+        //添加消息的future
         public final FutureRecordMetadata future;
+        //Batch是否满了
         public final boolean batchIsFull;
+        //Batch是否新建
         public final boolean newBatchCreated;
 
         public RecordAppendResult(FutureRecordMetadata future, boolean batchIsFull, boolean newBatchCreated) {
