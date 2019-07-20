@@ -27,11 +27,21 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * The set of requests which have been sent or are being sent but haven't yet received a response
+ * The set of requests which have been sent or are being sent but haven't yet received a responseq
+ * 请求队列
+ *       1. 正在发送的请求
+ *       2. 已经发送的但还没有接收到response的请求;
  */
 final class InFlightRequests {
-
+    /**
+     * 每个连接最大执行中请求数
+     */
     private final int maxInFlightRequestsPerConnection;
+    /**
+     * node->Deque<ClientRequest>
+     *     双端队列Deque，其中的元素请求ClientRequest
+     *     新请求从队列头部插入。发送从队列尾部取出
+     */
     private final Map<String, Deque<NetworkClient.InFlightRequest>> requests = new HashMap<>();
     /**
      * Thread safe total number of in flight requests.
@@ -44,25 +54,27 @@ final class InFlightRequests {
 
     /**
      * Add the given request to the queue for the connection it was directed to
-      添加请求到请求队列
+     * 请求入队
      */
     public void add(NetworkClient.InFlightRequest request) {
-        //目的地
+        // 目的地
         String destination = request.destination;
-        //获取目的地请求队列
+        // 获取目的地请求队列，没有则新建一个ArrayDeque
         Deque<NetworkClient.InFlightRequest> reqs = this.requests.get(destination);
         if (reqs == null) {
             reqs = new ArrayDeque<>();
             this.requests.put(destination, reqs);
         }
-        //向头部添加请求
+        // 向头部添加请求
         reqs.addFirst(request);
-        //请求消息个数+1，
+        // 请求消息个数+1，
         inFlightRequestCount.incrementAndGet();
     }
 
     /**
      * Get the request queue for the given node
+     *
+     * 获取指定noded的请求队列
      */
     private Deque<NetworkClient.InFlightRequest> requestQueue(String node) {
         Deque<NetworkClient.InFlightRequest> reqs = requests.get(node);
@@ -73,9 +85,13 @@ final class InFlightRequests {
 
     /**
      * Get the oldest request (the one that will be completed next) for the given node
+     *
+     * 请求出队
      */
     public NetworkClient.InFlightRequest completeNext(String node) {
+        // 从指定的请求队列的尾部取出一个请求
         NetworkClient.InFlightRequest inFlightRequest = requestQueue(node).pollLast();
+        // 请求数量-1
         inFlightRequestCount.decrementAndGet();
         return inFlightRequest;
     }
@@ -103,19 +119,17 @@ final class InFlightRequests {
 
     /**
      * Can we send more requests to this node?
-     *
+     * 
+     * 校验请求队列是否满了
+     * 
      * @param node Node in question
      * @return true iff we have no requests still being sent to the given node
      *
-     *         重点在于queue.peekFirst().request().completed，
-     *         即如果发给这个节点的最早的请求还没有发送完成，是不能再往这个节点发送请求的。
+     *         重点在于queue.peekFirst().request().completed， 即如果发给这个节点的最早的请求还没有发送完成，是不能再往这个节点发送请求的。
      * 
-     *         从canSendMore方法中也可以看出，
-     *         只要没有超过maxInFlightRequestsPerConnection，一个node可以有多个in-flight request的
+     *         从canSendMore方法中也可以看出， 只要没有超过maxInFlightRequestsPerConnection，一个node可以有多个in-flight request的
      *
      *         maxInFlightRequestsPerConnection max.in.flight.requests.per.connection
-     *
-     *
      */
     public boolean canSendMore(String node) {
         Deque<NetworkClient.InFlightRequest> queue = requests.get(node);
@@ -126,6 +140,7 @@ final class InFlightRequests {
     /**
      * Return the number of in-flight requests directed at the given node
      *
+     * 获取请求队列中的请求数量
      * @param node The node
      * @return The request count.
      */
