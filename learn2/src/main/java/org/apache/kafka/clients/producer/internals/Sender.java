@@ -156,13 +156,13 @@ public class Sender implements Runnable {
      */
     public void run() {
         log.info("Starting Kafka producer I/O thread.");
-        System.out.println("Starting Kafka producer I/O thread");
         // main loop, runs until close is called
         while (running) {
-            System.out.println("running");
             try {
+                /**
+                 * 轮询调用run(timstamp)
+                 */
                 run(time.milliseconds());
-
             } catch (Exception e) {
                 log.error("Uncaught error in kafka producer I/O thread: ", e);
             }
@@ -173,13 +173,22 @@ public class Sender implements Runnable {
         // okay we stopped accepting requests but there may still be
         // requests in the accumulator or waiting for acknowledgment,
         // wait until these are completed.
+        /**
+         *如果没有强制关闭，accumulator中还有剩余消息，还有等待未响应的消息
+         * 继续执行
+         */
         while (!forceClose && (this.accumulator.hasUndrained() || this.client.inFlightRequestCount() > 0)) {
             try {
+                //继续调用run方法发送剩余消息
                 run(time.milliseconds());
             } catch (Exception e) {
                 log.error("Uncaught error in kafka producer I/O thread: ", e);
             }
         }
+        /**
+         * Sender线程强制关闭，所有的未发消息全部失败，并唤醒furture。
+         *
+         */
         if (forceClose) {
             // We need to fail all the incomplete batches and wake up the threads waiting on
             // the futures.
@@ -242,25 +251,40 @@ public class Sender implements Runnable {
     }
 
     private long sendProducerData(long now) {
+        /**
+         * 获得Kafka集群数据
+         */
         Cluster cluster = metadata.fetch();
 
         // get the list of partitions with data ready to send
+        /**
+         * 获取node节点
+         */
         RecordAccumulator.ReadyCheckResult result = this.accumulator.ready(cluster, now);
 
         // if there are any partitions whose leaders are not known yet, force metadata update
+        /**
+         * 存在未知leader的节点，
+         */
         if (!result.unknownLeaderTopics.isEmpty()) {
             // The set of topics with unknown leader contains topics with leader election pending as well as
             // topics which may have expired. Add the topic again to metadata to ensure it is included
             // and request metadata update, since there are messages to send to the topic.
             for (String topic : result.unknownLeaderTopics)
+                // 加入元数据
                 this.metadata.add(topic);
 
-            log.debug("Requesting metadata update due to unknown leader topics from the batched records: {}", result.unknownLeaderTopics);
-
+            log.debug("Requesting metadata update due to unknown leader topics from the batched records: {}",
+                result.unknownLeaderTopics);
+            // 更新元数据
             this.metadata.requestUpdate();
         }
 
         // remove any nodes we aren't ready to send to
+        /**
+         * 进一步检测每个节点，的网络连接状态，将网络状态不可用的节点移除
+         * ，如果连接不可用会尝试进行初始化连接
+         */
         Iterator<Node> iter = result.readyNodes.iterator();
         long notReadyTimeout = Long.MAX_VALUE;
         while (iter.hasNext()) {
@@ -271,9 +295,15 @@ public class Sender implements Runnable {
             }
         }
 
-        // create produce requests
+        /** 从accumulator中取出消息
+         *
+         * tp和List<RecordBatch>的对应关系--->为node_id和List<RecordBatch>的对应关系
+         */
         Map<Integer, List<ProducerBatch>> batches = this.accumulator.drain(cluster, result.readyNodes,
                 this.maxRequestSize, now);
+        /**
+         * 消息的顺序处理
+         */
         if (guaranteeMessageOrder) {
             // Mute all the partitions drained
             for (List<ProducerBatch> batchList : batches.values()) {
@@ -281,6 +311,9 @@ public class Sender implements Runnable {
                     this.accumulator.mutePartition(batch.topicPartition);
             }
         }
+        /**
+         *  处理超时消息，把过期的消息删除并且释放ByteBuffer 释放资源
+         */
 
         List<ProducerBatch> expiredBatches = this.accumulator.expiredBatches(this.requestTimeoutMs, now);
         // Reset the producer id if an expired batch has previously been sent to the broker. Also update the metrics
@@ -311,6 +344,9 @@ public class Sender implements Runnable {
             // otherwise the select time will be the time difference between now and the metadata expiry time;
             pollTimeout = 0;
         }
+        /**发送请求，
+         * 这里并不是真正的网络读写，只是构建请求
+         */
         sendProduceRequests(batches, now);
 
         return pollTimeout;
@@ -654,11 +690,14 @@ public class Sender implements Runnable {
      */
     private void sendProduceRequests(Map<Integer, List<ProducerBatch>> collated, long now) {
         for (Map.Entry<Integer, List<ProducerBatch>> entry : collated.entrySet())
+          //构建请求
             sendProduceRequest(now, entry.getKey(), acks, requestTimeoutMs, entry.getValue());
     }
 
     /**
      * Create a produce request from the given record batches
+     * 创建一个请求，并不真正发送
+     * destination-->node_id
      */
     private void sendProduceRequest(long now, int destination, short acks, int timeout, List<ProducerBatch> batches) {
         if (batches.isEmpty())
@@ -673,7 +712,11 @@ public class Sender implements Runnable {
             if (batch.magic() < minUsedMagic)
                 minUsedMagic = batch.magic();
         }
-
+        /***
+         * 将消息按照分区号进行整理
+         * 循环遍历每个node的batches
+         * tp -->MemoryRecords tp-->batch
+         */
         for (ProducerBatch batch : batches) {
             TopicPartition tp = batch.topicPartition;
             MemoryRecords records = batch.records();
@@ -697,6 +740,9 @@ public class Sender implements Runnable {
         }
         ProduceRequest.Builder requestBuilder = ProduceRequest.Builder.forMagic(minUsedMagic, acks, timeout,
                 produceRecordsByPartition, transactionalId);
+        /**
+         * 请求完成的回调函数
+         */
         RequestCompletionHandler callback = new RequestCompletionHandler() {
             public void onComplete(ClientResponse response) {
                 handleProduceResponse(response, recordsByPartition, time.milliseconds());
@@ -704,8 +750,12 @@ public class Sender implements Runnable {
         };
 
         String nodeId = Integer.toString(destination);
+        //构建请求。
         ClientRequest clientRequest = client.newClientRequest(nodeId, requestBuilder, now, acks != 0,
                 requestTimeoutMs, callback);
+        /**
+         * 调用client的send方法准备发送请求
+         */
         client.send(clientRequest, now);
         log.trace("Sent produce request to {}: {}", nodeId, requestBuilder);
     }
