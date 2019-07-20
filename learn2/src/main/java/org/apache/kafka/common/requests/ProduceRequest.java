@@ -133,6 +133,9 @@ public class ProduceRequest extends AbstractRequest {
     public static class Builder extends AbstractRequest.Builder<ProduceRequest> {
         private final short acks;
         private final int timeout;
+        /**
+         * 分区对应的消息
+         */
         private final Map<TopicPartition, MemoryRecords> partitionRecords;
         private final String transactionalId;
 
