@@ -41,12 +41,12 @@ public class NetworkReceive implements Receive {
     private final String source;
     /**
      * 长度，可以理解为消息头
+     * 默认开辟的是4个字节，
+     * 使用头部四个4byte 表示数据长度，来解决粘包问题
      */
     private final ByteBuffer size;
     /**
      * 最大size
-     *默认开辟的是4个字节，
-     * 使用头部四个4byte 表示数据长度，来解决粘包问题
      */
     private final int maxSize;
     /**
