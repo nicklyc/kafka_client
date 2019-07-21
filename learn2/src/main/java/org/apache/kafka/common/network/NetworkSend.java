@@ -27,10 +27,20 @@ public class NetworkSend extends ByteBufferSend {
         super(destination, sizeDelimit(buffer));
     }
 
+    /**
+     * 组装ByteBuffer[size|data]的结构
+     * @param buffer
+     * @return
+     */
     private static ByteBuffer[] sizeDelimit(ByteBuffer buffer) {
         return new ByteBuffer[]{sizeBuffer(buffer.remaining()), buffer};
     }
 
+    /**
+     * 实例化4个字节的ByteBuffer，使用int初始化
+     * @param size
+     * @return
+     */
     private static ByteBuffer sizeBuffer(int size) {
         ByteBuffer sizeBuffer = ByteBuffer.allocate(4);
         sizeBuffer.putInt(size);
