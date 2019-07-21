@@ -23,18 +23,34 @@ import java.nio.channels.GatheringByteChannel;
 
 /**
  * A send backed by an array of byte buffers
+ * 写数据容器封装
  */
 public class ByteBufferSend implements Send {
-
+    /**
+     * 发送地址
+     */
     private final String destination;
+    /**
+     * 总长度，所有buffer的总大小
+     */
     private final int size;
+    /**
+     * 发送buffer[size|data]
+     */
     protected final ByteBuffer[] buffers;
+    /**
+     * 还剩余的长度
+     */
     private int remaining;
+    /**
+     * 是否挂起
+     */
     private boolean pending = false;
 
     public ByteBufferSend(String destination, ByteBuffer... buffers) {
         this.destination = destination;
         this.buffers = buffers;
+        //计算总长度
         for (ByteBuffer buffer : buffers)
             remaining += buffer.remaining();
         this.size = remaining;
@@ -57,6 +73,7 @@ public class ByteBufferSend implements Send {
 
     @Override
     public long writeTo(GatheringByteChannel channel) throws IOException {
+      //将内容写进buffer
         long written = channel.write(buffers);
         if (written < 0)
             throw new EOFException("Wrote negative bytes to channel. This shouldn't happen.");
