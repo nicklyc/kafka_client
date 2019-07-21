@@ -40,7 +40,7 @@ public class NetworkReceive implements Receive {
      */
     private final String source;
     /**
-     * 长度
+     * 长度，可以理解为消息头
      */
     private final ByteBuffer size;
     /**
@@ -55,7 +55,7 @@ public class NetworkReceive implements Receive {
     private final MemoryPool memoryPool;
     private int requestedBufferSize = -1;
     /**
-     * 数据
+     * 数据，可以理解为消息体
      */
     private ByteBuffer buffer;
 
