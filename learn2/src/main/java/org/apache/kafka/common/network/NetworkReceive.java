@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A size delimited Receive that consists of a 4 byte network-ordered size N followed by N bytes of content
+ * 网络接收数据封装
  */
 public class NetworkReceive implements Receive {
 
@@ -34,12 +35,28 @@ public class NetworkReceive implements Receive {
     public final static int UNLIMITED = -1;
     private static final Logger log = LoggerFactory.getLogger(NetworkReceive.class);
     private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
-
+    /**
+     * channel Id
+     */
     private final String source;
+    /**
+     * 长度
+     */
     private final ByteBuffer size;
+    /**
+     * 最大size
+     *默认开辟的是4个字节，
+     * 使用头部四个4byte 表示数据长度，来解决粘包问题
+     */
     private final int maxSize;
+    /**
+     * 内存池
+     */
     private final MemoryPool memoryPool;
     private int requestedBufferSize = -1;
+    /**
+     * 数据
+     */
     private ByteBuffer buffer;
 
 
@@ -89,38 +106,53 @@ public class NetworkReceive implements Receive {
         return !size.hasRemaining() && buffer != null && !buffer.hasRemaining();
     }
 
+    /***
+     * 读取Tcp数据
+     * 通过源码可以查看出拆包策略
+     * @param channel The channel to read from
+     * @return
+     * @throws IOException
+     */
+    @Override
     public long readFrom(ScatteringByteChannel channel) throws IOException {
         int read = 0;
+       //是否读取到了数据长度
         if (size.hasRemaining()) {
             int bytesRead = channel.read(size);
             if (bytesRead < 0)
                 throw new EOFException();
             read += bytesRead;
+            //数据长度位读取到了，
             if (!size.hasRemaining()) {
                 size.rewind();
+                //获取数据的长度
                 int receiveSize = size.getInt();
+                //长度进行校验
                 if (receiveSize < 0)
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + ")");
                 if (maxSize != UNLIMITED && receiveSize > maxSize)
                     throw new InvalidReceiveException("Invalid receive (size = " + receiveSize + " larger than " + maxSize + ")");
-                requestedBufferSize = receiveSize; //may be 0 for some payloads (SASL)
+                requestedBufferSize = receiveSize;
                 if (receiveSize == 0) {
                     buffer = EMPTY_BUFFER;
                 }
             }
         }
-        if (buffer == null && requestedBufferSize != -1) { //we know the size we want but havent been able to allocate it yet
+        //网络读取数据
+        if (buffer == null && requestedBufferSize != -1) {
+            //按照读取的数据长度开辟堆外内存 buffer
             buffer = memoryPool.tryAllocate(requestedBufferSize);
             if (buffer == null)
                 log.trace("Broker low on memory - could not allocate buffer of size {} for source {}", requestedBufferSize, source);
         }
+        //buffer已经分配了，表明size读取完
         if (buffer != null) {
+            //从socket读取指定长度的内容
             int bytesRead = channel.read(buffer);
             if (bytesRead < 0)
                 throw new EOFException();
             read += bytesRead;
         }
-
         return read;
     }
 
