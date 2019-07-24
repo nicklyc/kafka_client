@@ -21,7 +21,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 没有收到ack 的消息ProducerBatch
+ * 未发送完成的ProducerBatch集合
  */
 class IncompleteBatches {
     private final Set<ProducerBatch> incomplete;

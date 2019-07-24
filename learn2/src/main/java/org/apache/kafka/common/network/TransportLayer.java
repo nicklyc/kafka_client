@@ -38,32 +38,32 @@ import org.apache.kafka.common.errors.AuthenticationException;
 public interface TransportLayer extends ScatteringByteChannel, GatheringByteChannel {
 
     /**
-     * Returns true if the channel has handshake and authentication done.
+     *是否已经完成握手和认证
      */
     boolean ready();
 
     /**
-     * Finishes the process of connecting a socket channel.
+     * 是否完成连接
      */
     boolean finishConnect() throws IOException;
 
     /**
-     * disconnect socketChannel
+     * 断开连接
      */
     void disconnect();
 
     /**
-     * Tells whether or not this channel's network socket is connected.
+     * 是否建立连接
      */
     boolean isConnected();
 
     /**
-     * returns underlying socketChannel
+     * 获取SocketChannel
      */
     SocketChannel socketChannel();
 
     /**
-     * Get the underlying selection key
+     * 获取SelectionKey
      */
     SelectionKey selectionKey();
 

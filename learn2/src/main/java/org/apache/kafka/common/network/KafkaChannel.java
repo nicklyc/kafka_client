@@ -27,6 +27,9 @@ import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.util.Objects;
 
+/**
+ * kafka 网络连接通道，实际上是持有的SocketChannel
+ */
 public class KafkaChannel {
     /**
      * Mute States for KafkaChannel:
@@ -78,21 +81,45 @@ public class KafkaChannel {
     }
 
     ;
-
+    /**
+     * nodeId
+     */
     private final String id;
+    /**
+     * 读写数据
+     */
     private final TransportLayer transportLayer;
+    /**
+     * 认证
+     */
     private final Authenticator authenticator;
     // Tracks accumulated network thread time. This is updated on the network thread.
     // The values are read and reset after each response is sent.
     private long networkThreadTimeNanos;
+    /**
+     * 最大读取size，读取消息头中的消息长度大于该值，将会抛出@InvalidReceiveException
+     * 详细见@NetworkReceive##readFrom
+     */
     private final int maxReceiveSize;
+    /**
+     * 内存池
+     */
     private final MemoryPool memoryPool;
+    /**
+     * 读取数据容器
+     */
     private NetworkReceive receive;
+    /**
+     * 请求对象
+     */
     private Send send;
     // Track connection and mute state of channels to enable outstanding requests on channels to be
     // processed after the channel is disconnected.
     private boolean disconnected;
     private ChannelMuteState muteState;
+    /**
+     * Channel 连接状态的标记
+     */
     private ChannelState state;
 
     public KafkaChannel(String id, TransportLayer transportLayer, Authenticator authenticator, int maxReceiveSize, MemoryPool memoryPool) throws IOException {
@@ -114,6 +141,7 @@ public class KafkaChannel {
 
     /**
      * Returns the principal returned by `authenticator.principal()`.
+     * 获取身份认证信息
      */
     public KafkaPrincipal principal() {
         return authenticator.principal();
@@ -123,11 +151,17 @@ public class KafkaChannel {
      * Does handshake of transportLayer and authentication using configured authenticator.
      * For SSL with client authentication enabled, {@link TransportLayer#handshake()} performs
      * authentication. For SASL, authentication is performed by {@link Authenticator#authenticate()}.
+     *握手认证
+     * PLAINTEXT 协议，握手和认证都没有具体实现，不需要身份认证
+     * SSL会进行用户认证
      */
     public void prepare() throws AuthenticationException, IOException {
         try {
+            //握手，认证没有完成
             if (!transportLayer.ready())
+                //进行握手
                 transportLayer.handshake();
+            //认证
             if (transportLayer.ready() && !authenticator.complete())
                 authenticator.authenticate();
         } catch (AuthenticationException e) {
@@ -166,6 +200,12 @@ public class KafkaChannel {
         return connected;
     }
 
+    /**
+     *SOCKET是否建立连接
+     * 与finishConnect的差别就是，当阻塞模式下，当socket打开成功
+     * 该方法则为true，但是可能并未真正的连接
+     * @return
+     */
     public boolean isConnected() {
         return transportLayer.isConnected();
     }
@@ -174,6 +214,10 @@ public class KafkaChannel {
         return id;
     }
 
+    /**
+     * 获取该channel上的SelectionKey
+     * @return
+     */
     public SelectionKey selectionKey() {
         return transportLayer.selectionKey();
     }
@@ -284,10 +328,12 @@ public class KafkaChannel {
      * <p>
      * If the socket was connected prior to being closed, then this method will continue to return the
      * connected address after the socket is closed.
+     * 获取远程的Ip地址
      */
     public InetAddress socketAddress() {
         return transportLayer.socketChannel().socket().getInetAddress();
     }
+
 
     public String socketDescription() {
         Socket socket = transportLayer.socketChannel().socket();
@@ -296,6 +342,10 @@ public class KafkaChannel {
         return socket.getInetAddress().toString();
     }
 
+    /**
+     * 设置Send 数据
+     * @param send
+     */
     public void setSend(Send send) {
         if (this.send != null)
             throw new IllegalStateException("Attempt to begin a send operation with prior send operation still in progress, connection id is " + id);
@@ -304,15 +354,23 @@ public class KafkaChannel {
         this.transportLayer.addInterestOps(SelectionKey.OP_WRITE);
     }
 
+    /**
+     *网络读
+     * @return
+     * @throws IOException
+     */
     public NetworkReceive read() throws IOException {
         NetworkReceive result = null;
 
         if (receive == null) {
+            //构造一个NetworkReceive数据读取容器
             receive = new NetworkReceive(maxReceiveSize, id, memoryPool);
         }
-
+        //读取数据
         receive(receive);
+        //数据读结束
         if (receive.complete()) {
+            //重置消息体buffer指针
             receive.payload().rewind();
             result = receive;
             receive = null;
@@ -325,11 +383,14 @@ public class KafkaChannel {
 
     /**
      * 网络写
+     * 发送完成则返回send,
+     * 没有发送完成返回null
      * @return
      * @throws IOException
      */
     public Send write() throws IOException {
         Send result = null;
+        //发送
         if (send != null && send(send)) {
             result = send;
             send = null;
@@ -359,9 +420,11 @@ public class KafkaChannel {
     }
 
     private boolean send(Send send) throws IOException {
-        //这里使用的NetWorkSend
+        //这里使用的NetWorkSend，网络写，将数据写入SOCKET
         send.writeTo(transportLayer);
+        //写结束，buffer内容写完表示结束，
         if (send.completed())
+            //移除selectorKey的感兴趣集合写事件，
             transportLayer.removeInterestOps(SelectionKey.OP_WRITE);
 
         return send.completed();

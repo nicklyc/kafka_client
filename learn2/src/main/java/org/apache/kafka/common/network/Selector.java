@@ -755,15 +755,21 @@ public class Selector implements Selectable, AutoCloseable {
 
     /**
      * Close the connection identified by the given id
+     * 关闭指定node 的连接
      */
     public void close(String id) {
+        // 获取该node 对应的channel
         KafkaChannel channel = this.channels.get(id);
         if (channel != null) {
             // There is no disconnect notification for local close, but updating
             // channel state here anyway to avoid confusion.
+            // 将该channel 标记为关闭
             channel.state(ChannelState.LOCAL_CLOSE);
+            // 关闭channel通道
             close(channel, CloseMode.DISCARD_NO_NOTIFY);
         } else {
+            // 没有获取到则从closingChannels检查，获取该closingChannel的selextoryKey
+            // 取消绑定
             KafkaChannel closingChannel = this.closingChannels.remove(id);
             // Close any closing channel, leave the channel in the state in which closing was triggered
             if (closingChannel != null)

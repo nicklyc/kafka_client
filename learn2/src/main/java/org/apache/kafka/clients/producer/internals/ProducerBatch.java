@@ -127,13 +127,22 @@ public final class ProducerBatch {
      */
     public FutureRecordMetadata tryAppend(long timestamp, byte[] key, byte[] value, Header[] headers, Callback callback,
         long now) {
+        /**
+         * 检查是否还有足够的空间追加该消息
+         */
         if (!recordsBuilder.hasRoomFor(timestamp, key, value, headers)) {
             return null;
         } else {
+            /**
+             * 追加消息返回偏移量
+             */
             Long checksum = this.recordsBuilder.append(timestamp, key, value, headers);
+
             this.maxRecordSize = Math.max(this.maxRecordSize, AbstractRecords.estimateSizeInBytesUpperBound(magic(),
                 recordsBuilder.compressionType(), key, value, headers));
+           //记录追加时间
             this.lastAppendTime = now;
+            //封装FutureRecordMetadata
             FutureRecordMetadata future = new FutureRecordMetadata(this.produceFuture, this.recordCount, timestamp,
                 checksum, key == null ? -1 : key.length, value == null ? -1 : value.length);
             // we have to keep every future returned to the users in case the batch needs to be

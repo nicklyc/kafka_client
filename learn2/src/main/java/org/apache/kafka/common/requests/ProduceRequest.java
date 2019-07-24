@@ -47,9 +47,21 @@ import static org.apache.kafka.common.protocol.types.Type.INT16;
 import static org.apache.kafka.common.protocol.types.Type.INT32;
 import static org.apache.kafka.common.protocol.types.Type.RECORDS;
 
+/**
+ *Producer请求对象
+ */
 public class ProduceRequest extends AbstractRequest {
+    /**
+     *acks配置
+     */
     private static final String ACKS_KEY_NAME = "acks";
+    /**
+     * 超时时间
+     */
     private static final String TIMEOUT_KEY_NAME = "timeout";
+    /**
+     *  topic名称
+     */
     private static final String TOPIC_DATA_KEY_NAME = "topic_data";
 
     // topic level field names
@@ -121,6 +133,9 @@ public class ProduceRequest extends AbstractRequest {
     public static class Builder extends AbstractRequest.Builder<ProduceRequest> {
         private final short acks;
         private final int timeout;
+        /**
+         * 分区对应的消息
+         */
         private final Map<TopicPartition, MemoryRecords> partitionRecords;
         private final String transactionalId;
 
