@@ -96,7 +96,7 @@ public class NetworkClient implements KafkaClient {
      * 等待ack 的默认时间*/
     private final int defaultRequestTimeoutMs;
 
-    /* time in ms to wait before retrying to create connection to a server */
+    /**与kafka 服务器 重试创建连接的等待时间  --> reconnect.backoff.ms  */
     private final long reconnectBackoffMs;
 
     private final Time time;
@@ -481,7 +481,9 @@ public class NetworkClient implements KafkaClient {
         /**
          * 在client 初始化的实例化的，用的new DefaultMetadataUpdater(metadata);
          *
-         *
+         *metadataTimeout的超时时间，也就是metadata的下次更新时间，该方法内部会检查
+         * metada是否需要更新，如果需要并且进行更新，如果连接断开，会返回重试的连接的时间
+         * reconnect.backoff.ms。
          *
          *
          */
@@ -588,6 +590,9 @@ public class NetworkClient implements KafkaClient {
      */
     @Override
     public Node leastLoadedNode(long now) {
+        /**
+         * 获取所有的节点
+         */
         List<Node> nodes = this.metadataUpdater.fetchNodes();
         int inflight = Integer.MAX_VALUE;
         Node found = null;
@@ -926,6 +931,9 @@ public class NetworkClient implements KafkaClient {
             //
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
+            /**
+             * 选择一个可用节点，如果没有可用节点，则返回reconnectBackoffMs，重连的时间
+             */
             Node node = leastLoadedNode(now);
             if (node == null) {
                 log.debug("Give up sending metadata request since no node is available");
