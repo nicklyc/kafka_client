@@ -1050,9 +1050,18 @@ public class NetworkClient implements KafkaClient {
             // If there's any connection establishment underway, wait until it completes. This prevents
             // the client from unnecessarily connecting to additional nodes while a previous connection
             // attempt has not been completed.
+            /**
+             * 是否存在node正在建立连接
+             * 遍历所有的metada中cluster的node的状态
+             * 是connectting
+             */
             if (isAnyNodeConnecting()) {
                 // Strictly the timeout we should return here is "connect timeout", but as we don't
                 // have such application level configuration, using reconnect backoff instead.
+                /***
+                 *返回重试时间。严格的来讲 这里应该返回超时时间，但是kafka中并未提供连接超时的配置
+                 * 所以使用重试时间替代
+                 */
                 return reconnectBackoffMs;
             }
             // 可连接
@@ -1061,6 +1070,9 @@ public class NetworkClient implements KafkaClient {
                 log.debug("Initialize connection to node {} for sending metadata request", node);
                 // 初始化连接
                 initiateConnect(node, now);
+                /**
+                 * 返回的是重试连接，因为这里初始化连接可能不会成功，
+                 */
                 return reconnectBackoffMs;
             }
 
