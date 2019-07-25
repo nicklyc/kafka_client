@@ -96,7 +96,7 @@ private int i=0;
      * 等待ack 的默认时间*/
     private final int defaultRequestTimeoutMs;
 
-    /* time in ms to wait before retrying to create connection to a server */
+    /**与kafka 服务器 重试创建连接的等待时间  --> reconnect.backoff.ms  */
     private final long reconnectBackoffMs;
 
     private final Time time;
@@ -495,6 +495,12 @@ private int i=0;
         }
         /**
          * 在client 初始化的实例化的，用的new DefaultMetadataUpdater(metadata);
+         *
+         *metadataTimeout的超时时间，也就是metadata的下次更新时间，该方法内部会检查
+         * metada是否需要更新，如果需要并且进行更新，如果连接断开，会返回重试的连接的时间
+         * reconnect.backoff.ms。
+         *
+         *
          */
         // 更新元数据请求
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
@@ -599,6 +605,9 @@ private int i=0;
      */
     @Override
     public Node leastLoadedNode(long now) {
+        /**
+         * 获取所有的节点
+         */
         List<Node> nodes = this.metadataUpdater.fetchNodes();
         int inflight = Integer.MAX_VALUE;
         Node found = null;
@@ -942,6 +951,9 @@ private int i=0;
             //
             // Beware that the behavior of this method and the computation of timeouts for poll() are
             // highly dependent on the behavior of leastLoadedNode.
+            /**
+             * 选择一个可用节点，如果没有可用节点，则返回reconnectBackoffMs，重连的时间
+             */
             Node node = leastLoadedNode(now);
             if (node == null) {
                 log.debug("Give up sending metadata request since no node is available");
@@ -1058,9 +1070,18 @@ private int i=0;
             // If there's any connection establishment underway, wait until it completes. This prevents
             // the client from unnecessarily connecting to additional nodes while a previous connection
             // attempt has not been completed.
+            /**
+             * 是否存在node正在建立连接
+             * 遍历所有的metada中cluster的node的状态
+             * 是connectting
+             */
             if (isAnyNodeConnecting()) {
                 // Strictly the timeout we should return here is "connect timeout", but as we don't
                 // have such application level configuration, using reconnect backoff instead.
+                /***
+                 *返回重试时间。严格的来讲 这里应该返回超时时间，但是kafka中并未提供连接超时的配置
+                 * 所以使用重试时间替代
+                 */
                 return reconnectBackoffMs;
             }
             // 可连接
@@ -1069,6 +1090,9 @@ private int i=0;
                 log.debug("Initialize connection to node {} for sending metadata request", node);
                 // 初始化连接
                 initiateConnect(node, now);
+                /**
+                 * 返回的是重试连接，因为这里初始化连接可能不会成功，
+                 */
                 return reconnectBackoffMs;
             }
 
