@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
  * This class is not thread-safe!
  */
 public class NetworkClient implements KafkaClient {
-
+private int i=0;
     private final Logger log;
 
     /** 核心 用于执行网络I/O*/
@@ -240,10 +240,12 @@ public class NetworkClient implements KafkaClient {
      * Disconnects the connection to a particular node, if there is one. Any pending ClientRequests for this connection
      * will receive disconnections.
      *
+     * 断开连接
      * @param nodeId The id of the node
      */
     @Override
     public void disconnect(String nodeId) {
+        //将该节点的状态标记为 DISCONNECTED
         if (connectionStates.isDisconnected(nodeId))
             return;
 
@@ -261,6 +263,7 @@ public class NetworkClient implements KafkaClient {
                         request.createdTimeMs, now, true, null, null, null));
             }
         }
+        //将该节点的状态标记为 DISCONNECTED
         connectionStates.disconnected(nodeId, now);
         if (log.isDebugEnabled()) {
             log.debug("Manually disconnected from {}. Removed requests: {}.", nodeId, Utils.join(requestTypes, ", "));
@@ -437,7 +440,14 @@ public class NetworkClient implements KafkaClient {
     private void doSend(ClientRequest clientRequest, boolean isInternalRequest, long now, AbstractRequest request) {
         //获取要发往的node的id
         String destination = clientRequest.destination();
-        //生成Requestheader对象
+        /**
+         * 组装请求头：
+         * api_key
+         * api_version
+         * client_id
+         * correlation_id
+         * 这个请求头不是消息头，类似API公参
+         */
         RequestHeader header = clientRequest.makeHeader(request.version());
         if (log.isDebugEnabled()) {
             int latestClientVersion = clientRequest.apiKey().latestVersion();
@@ -452,9 +462,13 @@ public class NetworkClient implements KafkaClient {
 
         //生成待发送的send对象
         Send send = request.toSend(destination, header);
+        /**
+         * 构建一个InFlightRequest请求对象，并添加到请求队列
+         */
         InFlightRequest inFlightRequest =
                 new InFlightRequest(clientRequest, header, isInternalRequest, request, send, now);
         //添加请求到inFlightRequests队列
+        log.info(++i+"添加请求到请求队列...............");
         this.inFlightRequests.add(inFlightRequest);
         //发送请求
         selector.send(send);
@@ -463,6 +477,7 @@ public class NetworkClient implements KafkaClient {
     /**
      * Do actual reads and writes to sockets.
      *
+     * 进行网络读写
      * @param timeout The maximum amount of time to wait (in ms) for responses if there are none immediately, must be
      *                non-negative. The actual timeout will be the minimum of timeout, request timeout and metadata timeout
      * @param now     The current time in milliseconds
@@ -480,10 +495,6 @@ public class NetworkClient implements KafkaClient {
         }
         /**
          * 在client 初始化的实例化的，用的new DefaultMetadataUpdater(metadata);
-         *
-         *
-         *
-         *
          */
         // 更新元数据请求
         long metadataTimeout = metadataUpdater.maybeUpdate(now);
@@ -710,8 +721,11 @@ public class NetworkClient implements KafkaClient {
      */
     private void handleCompletedSends(List<ClientResponse> responses, long now) {
         // if no response is expected then when the send is completed, return it
+       //获取上一次调用poll完成的发送列表，进行遍历每一个send数据
         for (Send send : this.selector.completedSends()) {
+            //从请求队列中获取最后一个请求
             InFlightRequest request = this.inFlightRequests.lastSent(send.destination());
+           //不需要响应
             if (!request.expectResponse) {
                 this.inFlightRequests.completeLastSent(send.destination());
                 responses.add(request.completed(null, now));
@@ -744,8 +758,10 @@ public class NetworkClient implements KafkaClient {
      * @param now       The current time
      */
     private void handleCompletedReceives(List<ClientResponse> responses, long now) {
+        //遍历上一次poll完成的接收列表
         for (NetworkReceive receive : this.selector.completedReceives()) {
             String source = receive.source();
+            //从请求队列中移除请求
             InFlightRequest req = inFlightRequests.completeNext(source);
             Struct responseStruct =
                     parseStructMaybeUpdateThrottleTimeMetrics(receive.payload(), req.header, throttleTimeSensor, now);
@@ -1081,6 +1097,12 @@ public class NetworkClient implements KafkaClient {
         return discoverBrokerVersions;
     }
 
+    /**
+     * 在发送途中的请求
+     * 包括：
+     * 1. 正在发送的请求
+     * 2. 已经发送的但还没有接收到response的请求;
+     */
     static class InFlightRequest {
         final RequestHeader header;
         final String destination;
