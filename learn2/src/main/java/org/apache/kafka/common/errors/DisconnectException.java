@@ -19,6 +19,7 @@ package org.apache.kafka.common.errors;
 
 /**
  * Server disconnected before a request could be completed.
+ * 连接断开异常，一个请求完成之前，服务器断开了连接
  */
 public class DisconnectException extends RetriableException {
     public static final DisconnectException INSTANCE = new DisconnectException();
