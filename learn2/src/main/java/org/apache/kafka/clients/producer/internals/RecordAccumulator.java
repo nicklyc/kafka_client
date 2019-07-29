@@ -475,50 +475,68 @@ public final class RecordAccumulator {
      * <ol>
      * <li>There is at least one partition that is not backing off its send
      * <li><b>and</b> those partitions are not muted (to prevent reordering if
-     * {@value org.apache.kafka.clients.producer.ProducerConfig#MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION}
-     * is set to one)</li>
+     * {@value org.apache.kafka.clients.producer.ProducerConfig#MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION} is set to
+     * one)</li>
      * <li><b>and <i>any</i></b> of the following are true</li>
      * <ul>
      * <li>The record set is full</li>
      * <li>The record set has sat in the accumulator for at least lingerMs milliseconds</li>
-     * <li>The accumulator is out of memory and threads are blocking waiting for data (in this case all partitions
-     * are immediately considered ready).</li>
+     * <li>The accumulator is out of memory and threads are blocking waiting for data (in this case all partitions are
+     * immediately considered ready).</li>
      * <li>The accumulator has been closed</li>
      * </ul>
      * </ol>
+     * 获得那些分区准备好的的节点集合，同时还会标记未知leader的分区，目的节点准备好发送以下条件：
+     *
+     * 获得集群中符合发送消息条件的节点集合
      */
     public ReadyCheckResult ready(Cluster cluster, long nowMs) {
+        // 可以向哪些Node节点发送信息
         Set<Node> readyNodes = new HashSet<>();
+        // 下次需要调用ready的时间间隔
         long nextReadyCheckDelayMs = Long.MAX_VALUE;
+        // 找不到Leader副本的topics
         Set<String> unknownLeaderTopics = new HashSet<>();
-
+        // 是否有线程在阻塞等待BufferPool释放空间
         boolean exhausted = this.free.queued() > 0;
+        // 遍历batches集合
         for (Map.Entry<TopicPartition, Deque<ProducerBatch>> entry : this.batches.entrySet()) {
+            // 具体每个分区
             TopicPartition part = entry.getKey();
+            // 每个分区对应的双端队列
             Deque<ProducerBatch> deque = entry.getValue();
-
+            //查找分区的Leader副本所在的Node
             Node leader = cluster.leaderFor(part);
             synchronized (deque) {
                 if (leader == null && !deque.isEmpty()) {
                     // This is a partition for which leader is not known, but messages are available to send.
                     // Note that entries are currently not removed from batches when deque is empty.
+                   //未知分区的leader，将topic存放在unknownLeaderTopics
                     unknownLeaderTopics.add(part.topic());
                 } else if (!readyNodes.contains(leader) && !isMuted(part, nowMs)) {
+                    //获取双端队列的第一个ProducerBatch
                     ProducerBatch batch = deque.peekFirst();
                     if (batch != null) {
+                        //判断发送条件
                         long waitedTimeMs = batch.waitedTimeMs(nowMs);
                         boolean backingOff = batch.attempts() > 0 && waitedTimeMs < retryBackoffMs;
                         long timeToWaitMs = backingOff ? retryBackoffMs : lingerMs;
+                       //batch已经满了或者双端队列的batch 大于1个
                         boolean full = deque.size() > 1 || batch.isFull();
+                        //过期了
                         boolean expired = waitedTimeMs >= timeToWaitMs;
+                        //batch full或者过期了，或者bufferPoll过期了，或者有flush操作，或者缓存关闭。
                         boolean sendable = full || expired || exhausted || closed || flushInProgress();
+                        // 条件满足，并且没有在频繁尝试中，
                         if (sendable && !backingOff) {
+                            // 添加到readyNodes 集合
                             readyNodes.add(leader);
                         } else {
                             long timeLeftMs = Math.max(timeToWaitMs - waitedTimeMs, 0);
                             // Note that this results in a conservative estimate since an un-sendable partition may have
                             // a leader that will later be found to have sendable data. However, this is good enough
                             // since we'll just wake up and then sleep again for the remaining time.
+                            //下次需要调用ready()方法检查的时间间隔
                             nextReadyCheckDelayMs = Math.min(timeLeftMs, nextReadyCheckDelayMs);
                         }
                     }
@@ -837,6 +855,9 @@ public final class RecordAccumulator {
      * The set of nodes that have at least one complete record batch in the accumulator
      */
     public final static class ReadyCheckResult {
+        /**
+         * node 节点集合
+         */
         public final Set<Node> readyNodes;
         public final long nextReadyCheckDelayMs;
         public final Set<String> unknownLeaderTopics;
