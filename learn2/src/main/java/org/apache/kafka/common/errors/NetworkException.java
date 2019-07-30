@@ -19,6 +19,8 @@ package org.apache.kafka.common.errors;
 /**
  * A misc. network-related IOException occurred when making a request. This could be because the client's metadata is
  * out of date and it is making a request to a node that is now dead.
+ * 发送请求时，产生与网络有关的IOException,比如当本地缓存的Kafka元数据过期，
+ * 客户端向Kafka服务器请求更新元数据，但是请求了一个已经挂掉了的节点。
  */
 public class NetworkException extends InvalidMetadataException {
 

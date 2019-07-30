@@ -18,6 +18,7 @@ package org.apache.kafka.common.errors;
 
 /**
  * Indicates that a request timed out.
+ * 请求超时异常
  */
 public class TimeoutException extends RetriableException {
 
