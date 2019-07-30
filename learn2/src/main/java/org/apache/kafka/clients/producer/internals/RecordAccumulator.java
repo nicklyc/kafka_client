@@ -97,7 +97,7 @@ public final class RecordAccumulator {
      */
     private final long lingerMs;
     /**
-     * 重试重试间隔时间
+     * 重试重试间隔时间-->  retry.backoff.ms
      */
     private final long retryBackoffMs;
     /**
@@ -517,17 +517,19 @@ public final class RecordAccumulator {
                     //获取双端队列的第一个ProducerBatch
                     ProducerBatch batch = deque.peekFirst();
                     if (batch != null) {
-                        //判断发送条件
+                        //获取batch已经等待了多久，就是距离上次尝试的时间差值
                         long waitedTimeMs = batch.waitedTimeMs(nowMs);
+                        //是否应该冷却：当在重试发送中，并且waitedTimeMs小于重试间隔时间，
                         boolean backingOff = batch.attempts() > 0 && waitedTimeMs < retryBackoffMs;
+                        //冷却期等待时间为重试间隔时间，否则为延迟发送时间
                         long timeToWaitMs = backingOff ? retryBackoffMs : lingerMs;
                        //batch已经满了或者双端队列的batch 大于1个
                         boolean full = deque.size() > 1 || batch.isFull();
-                        //过期了
+                        //是否过期了，等待时间是否超过了应该等待的时间
                         boolean expired = waitedTimeMs >= timeToWaitMs;
                         //batch full或者过期了，或者bufferPoll过期了，或者有flush操作，或者缓存关闭。
                         boolean sendable = full || expired || exhausted || closed || flushInProgress();
-                        // 条件满足，并且没有在频繁尝试中，
+                        // 条件满足，并且没有在冷却期中
                         if (sendable && !backingOff) {
                             // 添加到readyNodes 集合
                             readyNodes.add(leader);
