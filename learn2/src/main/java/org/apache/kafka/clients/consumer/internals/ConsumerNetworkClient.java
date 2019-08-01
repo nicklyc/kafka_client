@@ -49,6 +49,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * Higher level consumer access to the network layer with basic support for request futures. This class
  * is thread-safe, but provides no synchronization for response callbacks. This guarantees that no locks
  * are held when they are invoked.
+ *
+ * 更高级别的消费者访问网络层， 此类是线程安全的，但不为响应回调提供同步。
+ * 持有 NetworkClient
+ *
  */
 public class ConsumerNetworkClient implements Closeable {
     private static final int MAX_POLL_TIMEOUT_MS = 5000;
@@ -56,8 +60,17 @@ public class ConsumerNetworkClient implements Closeable {
     // the mutable state of this class is protected by the object's monitor (excluding the wakeup
     // flag and the request completion queue below).
     private final Logger log;
+    /**
+     * 持有NetworkClient 进行网络读写
+     */
     private final KafkaClient client;
+    /**
+     * 缓冲队列
+     */
     private final UnsentRequests unsent = new UnsentRequests();
+    /**
+     * Kafka 集群元数据
+     */
     private final Metadata metadata;
     private final Time time;
     private final long retryBackoffMs;
@@ -76,6 +89,9 @@ public class ConsumerNetworkClient implements Closeable {
 
     // this flag allows the client to be safely woken up without waiting on the lock above. It is
     // atomic to avoid the need to acquire the lock above in order to enable it concurrently.
+    /**
+     *KafkaConsumer 之外的其他线程，调用 用来中断KafkaConsumer
+     */
     private final AtomicBoolean wakeup = new AtomicBoolean(false);
 
     public ConsumerNetworkClient(LogContext logContext,
@@ -97,6 +113,7 @@ public class ConsumerNetworkClient implements Closeable {
 
     /**
      * Send a request with the default timeout. See {@link #send(Node, AbstractRequest.Builder, int)}.
+     * 发送请求
      */
     public RequestFuture<ClientResponse> send(Node node, AbstractRequest.Builder<?> requestBuilder) {
         return send(node, requestBuilder, requestTimeoutMs);
@@ -238,6 +255,7 @@ public class ConsumerNetworkClient implements Closeable {
 
     /**
      * Poll for any network IO.
+     * 轮询网络IO
      *
      * @param timeout timeout in milliseconds
      * @param now     current time in milliseconds
@@ -255,8 +273,9 @@ public class ConsumerNetworkClient implements Closeable {
      */
     public void poll(long timeout, long now, PollCondition pollCondition, boolean disableWakeup) {
         // there may be handlers which need to be invoked if we woke up the previous call to poll
+       //  触发pendingCompleted里的请求
         firePendingCompletedRequests();
-
+       //加锁
         lock.lock();
         try {
             // Handle async disconnects prior to attempting any sends
@@ -264,6 +283,7 @@ public class ConsumerNetworkClient implements Closeable {
 
             // send all the requests we can send now
             long pollDelayMs = trySend(now);
+            //计算超时时间
             timeout = Math.min(timeout, pollDelayMs);
 
             // check whether the poll is still needed by the caller. Note that if the expected completion
@@ -276,16 +296,23 @@ public class ConsumerNetworkClient implements Closeable {
                 client.poll(Math.min(maxPollTimeoutMs, timeout), now);
                 now = time.milliseconds();
             } else {
+                //发送请求
                 client.poll(0, now);
             }
 
             // handle any disconnects by failing the active requests. note that disconnects must
             // be checked immediately following poll since any subsequent call to client.ready()
             // will reset the disconnect status
+            /** 检测连接状态，检测消费者与每个Node之间的连接状态，
+             * 当检测到连接断开的Node时，会将其在unsent列表中对应的全部ClientRequest对象清除掉，
+             * 之后调用这些ClientRequest函数，
+             * 并且设置disconnect标记为true
+             */
             checkDisconnects(now);
             if (!disableWakeup) {
                 // trigger wakeups after checking for disconnects so that the callbacks will be ready
                 // to be fired on the next call to poll()
+               //检测wakeup 和wakeupDisabledCount,查看是否有其他线程中断，如果有中断请求，则抛出WakeupExeception
                 maybeTriggerWakeup();
             }
             // throw InterruptException if this thread is interrupted
@@ -293,9 +320,15 @@ public class ConsumerNetworkClient implements Closeable {
 
             // try again to send requests since buffer space may have been
             // cleared or a connect finished in the poll
+            /**
+             * 再次试图发送，可能现在内存已经清理了或者Node可以连接上了
+             *
+             */
             trySend(now);
 
             // fail requests that couldn't be sent if they have expired
+            // 处理unsent中的超时请求，它会遍历整个unsent集合，检测，每一个ClientRequest是否超时，调用超时ClientRequest
+            // 的回调函数，并将其从unsent列表删除
             failExpiredRequests(now);
 
             // clean unsent requests collection to keep the map from growing indefinitely
@@ -305,6 +338,7 @@ public class ConsumerNetworkClient implements Closeable {
         }
 
         // called without the lock to avoid deadlock potential if handlers need to acquire locks
+        // 触发pendingCompleted里的请求
         firePendingCompletedRequests();
     }
 
@@ -481,19 +515,37 @@ public class ConsumerNetworkClient implements Closeable {
         }
     }
 
+    /**
+     *
+     * @param now
+     * @return
+     */
     private long trySend(long now) {
         long pollDelayMs = Long.MAX_VALUE;
 
         // send any requests that can be sent now
+        /**
+         * 遍历unsent  队列中所有的node节点，每个节点的请求进行发送
+         * 发送结束  删除请求
+         * 这里的发送并不是真正的发送，可以立即为预发送
+         * 是添加到请求队列，并调用selector.send(send); 最终只是把send 设置给KafkaChannel
+         * 让KafkaChannel  持有send对象，等待被发送
+         */
         for (Node node : unsent.nodes()) {
+
             Iterator<ClientRequest> iterator = unsent.requestIterator(node);
             if (iterator.hasNext())
+                //获取延迟时间
                 pollDelayMs = Math.min(pollDelayMs, client.pollDelayMs(node, now));
 
             while (iterator.hasNext()) {
+                //每个节点的请求
                 ClientRequest request = iterator.next();
+                //检查连接是否ready
                 if (client.ready(node, now)) {
+                    //发送
                     client.send(request, now);
+                    //发送完 删除请求对象
                     iterator.remove();
                 }
             }
@@ -501,9 +553,13 @@ public class ConsumerNetworkClient implements Closeable {
         return pollDelayMs;
     }
 
+    /**
+     *
+     */
     public void maybeTriggerWakeup() {
         if (!wakeupDisabled.get() && wakeup.get()) {
             log.debug("Raising WakeupException in response to user wakeup");
+           //重置中断标志
             wakeup.set(false);
             throw new WakeupException();
         }
@@ -629,17 +685,34 @@ public class ConsumerNetworkClient implements Closeable {
 
     /*
      * A thread-safe helper class to hold requests per node that have not been sent yet
+     * 一个线程安全类，保存未发送的请求
      */
     private final static class UnsentRequests {
+        /**
+         * node--> 队列
+         */
         private final ConcurrentMap<Node, ConcurrentLinkedQueue<ClientRequest>> unsent;
+
 
         private UnsentRequests() {
             unsent = new ConcurrentHashMap<>();
         }
 
+        /**
+         * 将发往该node的请求  存放入队
+         * @param node
+         * @param request
+         */
         public void put(Node node, ClientRequest request) {
             // the lock protects the put from a concurrent removal of the queue for the node
+            /**
+             * 这里为什么加锁 ？
+             *
+             */
             synchronized (unsent) {
+                /**获取该node的请求队列
+                 * 没有就初始化一个，存放请求
+                 */
                 ConcurrentLinkedQueue<ClientRequest> requests = unsent.get(node);
                 if (requests == null) {
                     requests = new ConcurrentLinkedQueue<>();
@@ -649,11 +722,20 @@ public class ConsumerNetworkClient implements Closeable {
             }
         }
 
+        /**
+         * 统计指定node 的请求数
+         * @param node
+         * @return
+         */
         public int requestCount(Node node) {
             ConcurrentLinkedQueue<ClientRequest> requests = unsent.get(node);
             return requests == null ? 0 : requests.size();
         }
 
+        /**
+         * 请求队列 所有请求数
+         * @return
+         */
         public int requestCount() {
             int total = 0;
             for (ConcurrentLinkedQueue<ClientRequest> requests : unsent.values())
