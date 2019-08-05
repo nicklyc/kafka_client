@@ -55,7 +55,7 @@ public class SubscriptionState {
 
     private enum SubscriptionType {
         /**
-         * 初始值
+         * 初始值, 没有任何方式进行订阅
          */
         NONE,
         /**
@@ -248,6 +248,10 @@ public class SubscriptionState {
         return this.subscriptionType == SubscriptionType.AUTO_PATTERN;
     }
 
+    /**
+     * 是否处于某种订阅模式中
+     * @return  true 没有任何方式进行订阅
+     */
     public boolean hasNoSubscriptionOrUserAssignment() {
         return this.subscriptionType == SubscriptionType.NONE;
     }
