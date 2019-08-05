@@ -1,18 +1,14 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE
+ * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+ * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
  */
 package org.apache.kafka.clients.consumer.internals;
 
@@ -35,51 +31,91 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * A class for tracking the topics, partitions, and offsets for the consumer. A partition
- * is "assigned" either directly with {@link #assignFromUser(Set)} (manual assignment)
- * or with {@link #assignFromSubscribed(Collection)} (automatic assignment from subscription).
+ * A class for tracking the topics, partitions, and offsets for the consumer. A partition is "assigned" either directly
+ * with {@link #assignFromUser(Set)} (manual assignment) or with {@link #assignFromSubscribed(Collection)} (automatic
+ * assignment from subscription).
  * <p>
- * Once assigned, the partition is not considered "fetchable" until its initial position has
- * been set with {@link #seek(TopicPartition, long)}. Fetchable partitions track a fetch
- * position which is used to set the offset of the next fetch, and a consumed position
- * which is the last offset that has been returned to the user. You can suspend fetching
- * from a partition through {@link #pause(TopicPartition)} without affecting the fetched/consumed
- * offsets. The partition will remain unfetchable until the {@link #resume(TopicPartition)} is
- * used. You can also query the pause state independently with {@link #isPaused(TopicPartition)}.
+ * Once assigned, the partition is not considered "fetchable" until its initial position has been set with
+ * {@link #seek(TopicPartition, long)}. Fetchable partitions track a fetch position which is used to set the offset of
+ * the next fetch, and a consumed position which is the last offset that has been returned to the user. You can suspend
+ * fetching from a partition through {@link #pause(TopicPartition)} without affecting the fetched/consumed offsets. The
+ * partition will remain unfetchable until the {@link #resume(TopicPartition)} is used. You can also query the pause
+ * state independently with {@link #isPaused(TopicPartition)}.
  * <p>
- * Note that pause state as well as fetch/consumed positions are not preserved when partition
- * assignment is changed whether directly by the user or through a group rebalance.
+ * Note that pause state as well as fetch/consumed positions are not preserved when partition assignment is changed
+ * whether directly by the user or through a group rebalance.
+ * 
+ * SubscriptionState： 追踪TopicPartition和offset对应关系
+ * 
+ * 
  */
 public class SubscriptionState {
     private static final String SUBSCRIPTION_EXCEPTION_MESSAGE =
-            "Subscription to topics, partitions and pattern are mutually exclusive";
+        "Subscription to topics, partitions and pattern are mutually exclusive";
 
     private enum SubscriptionType {
-        NONE, AUTO_TOPICS, AUTO_PATTERN, USER_ASSIGNED
+        /**
+         * 初始值
+         */
+        NONE,
+        /**
+         * 按照指定的Topic名字进行订阅，自动分配分区。
+         */
+        AUTO_TOPICS,
+        /**
+         * 按照指定的正则表达式匹配Topic进行订阅，自动分配分区
+         */
+        AUTO_PATTERN,
+        /**
+         * 手动指定消费者消费的Topic以及分区编号
+         */
+        USER_ASSIGNED
     }
 
-    /* the type of subscription */
+    /**
+     * 订阅Topic的模式@SubscriptionType
+     */
     private SubscriptionType subscriptionType;
 
-    /* the pattern user has requested */
+    /**
+     * 订阅的正则表达式
+     * 需要对应 --->AUTO_TOPICS模式
+     *
+     * 对符合正在表达式的Topic进行订阅。
+     */
     private Pattern subscribedPattern;
 
-    /* the list of topics the user has requested */
+    /**
+     * 在AUTO_TOPICS或AUTO_PARTITION 模式下
+     * 用户订阅的所有的 topic set 集合
+     */
     private Set<String> subscription;
 
-    /* the list of topics the group has subscribed to (set only for the leader on join group completion) */
+    /**
+     * Consumer Group中会选一个Leader,
+     * Leader会使用这个集合记录Consumer Group中所有消费者订阅的Topic.集合
+     *
+     * 而其他的Follower的这个集合只会保存自身订阅的Topic。
+     */
     private final Set<String> groupSubscription;
 
     /* the partitions that are currently assigned, note that the order of partition matters (see FetchBuilder for more details) */
+    /**
+     *
+     */
     private final PartitionStates<TopicPartitionState> assignment;
 
-    /* Default offset reset strategy */
+    /**
+     * 默认重置 offet的策略，默认值为NONE
+     */
     private final OffsetResetStrategy defaultResetStrategy;
 
     /* Listeners provide a hook for internal state cleanup (e.g. metrics) on assignment changes */
     private final List<Listener> listeners = new ArrayList<>();
 
-    /* User-provided listener to be invoked when assignment changes */
+    /**
+     * 用于监听分区分配操作。
+     */
     private ConsumerRebalanceListener rebalanceListener;
 
     public SubscriptionState(OffsetResetStrategy defaultResetStrategy) {
@@ -92,9 +128,8 @@ public class SubscriptionState {
     }
 
     /**
-     * This method sets the subscription type if it is not already set (i.e. when it is NONE),
-     * or verifies that the subscription type is equal to the give type when it is set (i.e.
-     * when it is not NONE)
+     * This method sets the subscription type if it is not already set (i.e. when it is NONE), or verifies that the
+     * subscription type is equal to the give type when it is set (i.e. when it is not NONE)
      *
      * @param type The given subscription type
      */
@@ -118,8 +153,8 @@ public class SubscriptionState {
 
     public void subscribeFromPattern(Set<String> topics) {
         if (subscriptionType != SubscriptionType.AUTO_PATTERN)
-            throw new IllegalArgumentException("Attempt to subscribe from pattern while subscription type set to " +
-                    subscriptionType);
+            throw new IllegalArgumentException(
+                "Attempt to subscribe from pattern while subscription type set to " + subscriptionType);
 
         changeSubscription(topics);
     }
@@ -132,8 +167,8 @@ public class SubscriptionState {
     }
 
     /**
-     * Add topics to the current group subscription. This is used by the group leader to ensure
-     * that it receives metadata updates for all topics that the group is interested in.
+     * Add topics to the current group subscription. This is used by the group leader to ensure that it receives
+     * metadata updates for all topics that the group is interested in.
      *
      * @param topics The topics to add to the group subscription
      */
@@ -151,9 +186,8 @@ public class SubscriptionState {
     }
 
     /**
-     * Change the assignment to the specified partitions provided by the user,
-     * note this is different from {@link #assignFromSubscribed(Collection)}
-     * whose input partitions are provided from the subscribed topics.
+     * Change the assignment to the specified partitions provided by the user, note this is different from
+     * {@link #assignFromSubscribed(Collection)} whose input partitions are provided from the subscribed topics.
      */
     public void assignFromUser(Set<TopicPartition> partitions) {
         setSubscriptionType(SubscriptionType.USER_ASSIGNED);
@@ -173,12 +207,13 @@ public class SubscriptionState {
     }
 
     /**
-     * Change the assignment to the specified partitions returned from the coordinator,
-     * note this is different from {@link #assignFromUser(Set)} which directly set the assignment from user inputs
+     * Change the assignment to the specified partitions returned from the coordinator, note this is different from
+     * {@link #assignFromUser(Set)} which directly set the assignment from user inputs
      */
     public void assignFromSubscribed(Collection<TopicPartition> assignments) {
         if (!this.partitionsAutoAssigned())
-            throw new IllegalArgumentException("Attempt to dynamically assign partitions while manual assignment in use");
+            throw new IllegalArgumentException(
+                "Attempt to dynamically assign partitions while manual assignment in use");
 
         Map<TopicPartition, TopicPartitionState> assignedPartitionStates = partitionToStateMap(assignments);
         fireOnAssignment(assignedPartitionStates.keySet());
@@ -186,12 +221,14 @@ public class SubscriptionState {
         if (this.subscribedPattern != null) {
             for (TopicPartition tp : assignments) {
                 if (!this.subscribedPattern.matcher(tp.topic()).matches())
-                    throw new IllegalArgumentException("Assigned partition " + tp + " for non-subscribed topic regex pattern; subscription pattern is " + this.subscribedPattern);
+                    throw new IllegalArgumentException("Assigned partition " + tp
+                        + " for non-subscribed topic regex pattern; subscription pattern is " + this.subscribedPattern);
             }
         } else {
             for (TopicPartition tp : assignments)
                 if (!this.subscription.contains(tp.topic()))
-                    throw new IllegalArgumentException("Assigned partition " + tp + " for non-subscribed topic; subscription is " + this.subscription);
+                    throw new IllegalArgumentException(
+                        "Assigned partition " + tp + " for non-subscribed topic; subscription is " + this.subscription);
         }
 
         this.assignment.set(assignedPartitionStates);
@@ -242,15 +279,14 @@ public class SubscriptionState {
     }
 
     /**
-     * Get the subscription for the group. For the leader, this will include the union of the
-     * subscriptions of all group members. For followers, it is just that member's subscription.
-     * This is used when querying topic metadata to detect the metadata changes which would
-     * require rebalancing. The leader fetches metadata for all topics in the group so that it
-     * can do the partition assignment (which requires at least partition counts for all topics
-     * to be assigned).
+     * Get the subscription for the group. For the leader, this will include the union of the subscriptions of all group
+     * members. For followers, it is just that member's subscription. This is used when querying topic metadata to
+     * detect the metadata changes which would require rebalancing. The leader fetches metadata for all topics in the
+     * group so that it can do the partition assignment (which requires at least partition counts for all topics to be
+     * assigned).
      *
-     * @return The union of all subscribed topics in the group if this member is the leader
-     * of the current generation; otherwise it returns the same set as {@link #subscription()}
+     * @return The union of all subscribed topics in the group if this member is the leader of the current generation;
+     *         otherwise it returns the same set as {@link #subscription()}
      */
     public Set<String> groupSubscription() {
         return this.groupSubscription;
@@ -281,7 +317,8 @@ public class SubscriptionState {
     }
 
     public boolean partitionsAutoAssigned() {
-        return this.subscriptionType == SubscriptionType.AUTO_TOPICS || this.subscriptionType == SubscriptionType.AUTO_PATTERN;
+        return this.subscriptionType == SubscriptionType.AUTO_TOPICS
+            || this.subscriptionType == SubscriptionType.AUTO_PATTERN;
     }
 
     public void position(TopicPartition tp, long offset) {
@@ -295,14 +332,17 @@ public class SubscriptionState {
     public Long partitionLag(TopicPartition tp, IsolationLevel isolationLevel) {
         TopicPartitionState topicPartitionState = assignedState(tp);
         if (isolationLevel == IsolationLevel.READ_COMMITTED)
-            return topicPartitionState.lastStableOffset == null ? null : topicPartitionState.lastStableOffset - topicPartitionState.position;
+            return topicPartitionState.lastStableOffset == null ? null
+                : topicPartitionState.lastStableOffset - topicPartitionState.position;
         else
-            return topicPartitionState.highWatermark == null ? null : topicPartitionState.highWatermark - topicPartitionState.position;
+            return topicPartitionState.highWatermark == null ? null
+                : topicPartitionState.highWatermark - topicPartitionState.position;
     }
 
     public Long partitionLead(TopicPartition tp) {
         TopicPartitionState topicPartitionState = assignedState(tp);
-        return topicPartitionState.logStartOffset == null ? null : topicPartitionState.position - topicPartitionState.logStartOffset;
+        return topicPartitionState.logStartOffset == null ? null
+            : topicPartitionState.position - topicPartitionState.logStartOffset;
     }
 
     public void updateHighWatermark(TopicPartition tp, long highWatermark) {
@@ -442,20 +482,24 @@ public class SubscriptionState {
             listener.onAssignment(assignment);
     }
 
-    private static Map<TopicPartition, TopicPartitionState> partitionToStateMap(Collection<TopicPartition> assignments) {
+    private static Map<TopicPartition, TopicPartitionState>
+        partitionToStateMap(Collection<TopicPartition> assignments) {
         Map<TopicPartition, TopicPartitionState> map = new HashMap<>(assignments.size());
         for (TopicPartition tp : assignments)
             map.put(tp, new TopicPartitionState());
         return map;
     }
 
+    /**
+     * consumer 消费
+     */
     private static class TopicPartitionState {
         private Long position; // last consumed position
         private Long highWatermark; // the high watermark from last fetch
         private Long logStartOffset; // the log start offset
         private Long lastStableOffset;
-        private boolean paused;  // whether this partition has been paused by the user
-        private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting
+        private boolean paused; // whether this partition has been paused by the user
+        private OffsetResetStrategy resetStrategy; // the strategy to use if the offset needs resetting
         private Long nextAllowedRetryTimeMs;
 
         TopicPartitionState() {
