@@ -21,15 +21,21 @@ public class ProducerConf {
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, url);
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         // 请求最大的超时时间
-        // properties.put("request.timeout.ms", 50);
+        properties.put("request.timeout.ms", 50);
         // 元数据更新周期
-        // properties.put("metadata.max.age.ms", 5000);
+         properties.put("metadata.max.age.ms", 5000);
         // 自定义拦截器
         // properties.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, Interceptor.class.getName());
         // Kryo 序列化
        // properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KryoSerializer.class.getName());
         //protostuff序列化
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ProtostuffSerializer.class.getName());
+        properties.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, "1");
+
+       // properties.put(ProducerConfig.LINGER_MS_CONFIG, 1000*8);
+         //properties.put(ProducerConfig.BATCH_SIZE_CONFIG,50);
+        properties.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,"lz4");
+
         return properties;
     }
 }
