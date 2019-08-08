@@ -568,13 +568,25 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     private final long retryBackoffMs;
     private final long requestTimeoutMs;
     private final int defaultApiTimeoutMs;
+    /**
+     * consumer 是否关闭
+     * 调用consumer.close方法进行关闭
+     */
     private volatile boolean closed = false;
     private List<PartitionAssignor> assignors;
 
     // currentThread holds the threadId of the current thread accessing KafkaConsumer
     // and is used to prevent multi-threaded access
+    /**
+     * 使用一个AtomicLong 变量来保存当前访问 KafkaConsumer的线程Id.
+     * 当前线程的Id
+     */
     private final AtomicLong currentThread = new AtomicLong(NO_CURRENT_THREAD);
     // refcount is used to allow reentrant access by the thread who has acquired currentThread
+    /**
+     * 已经取得KafkaConsumer访问权限的线程 进行冲入访问
+     * 重入锁的简单实现
+     */
     private final AtomicInteger refcount = new AtomicInteger(0);
 
     // to keep from repeatedly scanning subscriptions in poll(), cache the result during metadata updates
@@ -1150,23 +1162,34 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     }
 
     private ConsumerRecords<K, V> poll(final long timeoutMs, final boolean includeMetadataInTimeout) {
+        // 尝试获取锁，如果获取不到，抛出异常
         acquireAndEnsureOpen();
         try {
-            if (timeoutMs < 0) throw new IllegalArgumentException("Timeout must not be negative");
-
+            if (timeoutMs < 0)
+                throw new IllegalArgumentException("Timeout must not be negative");
+            // 检查订阅模式
             if (this.subscriptions.hasNoSubscriptionOrUserAssignment()) {
                 throw new IllegalStateException("Consumer is not subscribed to any topics or assigned any partitions");
             }
 
-            // poll for new data until the timeout expires
+            /** 拉取消息直到超时
+             * 使用了一个do while 循环，只要没有超时，就进行一直拉取
+             *
+             */
             long elapsedTime = 0L;
             do {
 
+                /**
+                 * consumer线程不可中断
+                 */
                 client.maybeTriggerWakeup();
 
                 final long metadataEnd;
                 if (includeMetadataInTimeout) {
                     final long metadataStart = time.milliseconds();
+                    /**
+                     * todo ?
+                     */
                     if (!updateAssignmentMetadataIfNeeded(remainingTimeAtLeastZero(timeoutMs, elapsedTime))) {
                         return ConsumerRecords.empty();
                     }
@@ -1178,9 +1201,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                     }
                     metadataEnd = time.milliseconds();
                 }
-
+                /**
+                 * 拉取消息
+                 */
                 final Map<TopicPartition, List<ConsumerRecord<K, V>>> records = pollForFetches(remainingTimeAtLeastZero(timeoutMs, elapsedTime));
 
+                //没有拉取到数据，尝试进一步拉取
                 if (!records.isEmpty()) {
                     // before returning the fetched records, we can send off the next round of fetches
                     // and avoid block waiting for their responses to enable pipelining while the user
@@ -1191,16 +1217,17 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                     if (fetcher.sendFetches() > 0 || client.hasPendingRequests()) {
                         client.pollNoWakeup();
                     }
-
+                    //拉取到的消息不为空，经过拦截器链处理，遍历每个消费者拦截器进行消息处理
                     return this.interceptors.onConsume(new ConsumerRecords<>(records));
                 }
                 final long fetchEnd = time.milliseconds();
                 elapsedTime += fetchEnd - metadataEnd;
 
             } while (elapsedTime < timeoutMs);
-
+            //返回空消息
             return ConsumerRecords.empty();
         } finally {
+            //释放资源
             release();
         }
     }
@@ -1217,6 +1244,11 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         return updateFetchPositions(remainingTimeAtLeastZero(timeoutMs, time.milliseconds() - startMs));
     }
 
+    /**
+     * 拉取消息
+     * @param timeoutMs
+     * @return
+     */
     private Map<TopicPartition, List<ConsumerRecord<K, V>>> pollForFetches(final long timeoutMs) {
         final long startMs = time.milliseconds();
         long pollTimeout = Math.min(coordinator.timeToNextPoll(startMs), timeoutMs);
@@ -1228,6 +1260,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
         }
 
         // send any new fetches (won't resend pending fetches)
+        //发送请求拉取数据
         fetcher.sendFetches();
 
         // We do not want to be stuck blocking in poll if we are missing some positions
@@ -2180,8 +2213,10 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @throws IllegalStateException If the consumer has been closed
      */
     private void acquireAndEnsureOpen() {
+        //获取锁
         acquire();
         if (this.closed) {
+            //锁释放
             release();
             throw new IllegalStateException("This consumer has already been closed.");
         }
@@ -2192,17 +2227,32 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * when the lock is not available, however, we just throw an exception (since multi-threaded usage is not
      * supported).
      *
+     * 不支持多线程的，如果线程占用，则直接抛出异常
+     * 获取访问权限：
+     *     1：当前线程如果正在访问consumer ，那么直接拥有权限访问，但是refcount +1，重入自增。
+     *     2：如果当前线程没有进行访问，通过cas设置，将当前线程的id 设置给currentThread
+     *     设置成功，那么说明抢占成功。
+     *
+     *   抢占不成功直接抛出异常
+     *
      * @throws ConcurrentModificationException if another thread already has the lock
      */
     private void acquire() {
         long threadId = Thread.currentThread().getId();
+        //当前线程获取锁失败，
         if (threadId != currentThread.get() && !currentThread.compareAndSet(NO_CURRENT_THREAD, threadId))
             throw new ConcurrentModificationException("KafkaConsumer is not safe for multi-threaded access");
+        //当前线程的锁+1
         refcount.incrementAndGet();
     }
 
     /**
      * Release the light lock protecting the consumer from multi-threaded access.
+     * 资源释放：
+     *
+     * refcount通过原子自增-1 进行计数相减。
+     * 如果当前线程的重入锁计数器为0 ，则表明已经完全释放。
+     * 标记当前线程不占有 该consumer
      */
     private void release() {
         if (refcount.decrementAndGet() == 0)

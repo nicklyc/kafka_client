@@ -49,6 +49,8 @@ public class PlaintextTransportLayer implements TransportLayer {
     public boolean finishConnect() throws IOException {
         boolean connected = socketChannel.finishConnect();
         if (connected)
+            //连接上将移除selectorKey的连接事件，也就是selectorKey不再对
+            //连接事件感兴趣，
             key.interestOps(key.interestOps() & ~SelectionKey.OP_CONNECT | SelectionKey.OP_READ);
         return connected;
     }

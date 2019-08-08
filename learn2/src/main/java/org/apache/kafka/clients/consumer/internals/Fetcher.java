@@ -92,31 +92,76 @@ import static org.apache.kafka.common.serialization.ExtendedDeserializer.Wrapper
 
 /**
  * This class manage the fetching process with the brokers.
+ *发送featchRequest 获取消息，处理featchResponse,更新消费位置
  */
 public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
     private final Logger log;
     private final LogContext logContext;
+    /**
+     * 负责网络读写
+     */
     private final ConsumerNetworkClient client;
     private final Time time;
+    /**
+     * 最少响应byte数 服务器收到request之后不是立即响应。当消息累积到一定程度才开始响应， minbytes 表示最小累积字节。 这样的也就是每次拉取消息，也是一批次消息。
+     */
     private final int minBytes;
     private final int maxBytes;
+    /**
+     * 等待FeatchResponse 的最长时间，服务器会使用此参数，进行响应。
+     */
     private final int maxWaitMs;
+    /**
+     * 每次featch 的最大字节数。
+     */
     private final int fetchSize;
+    /**
+     * 充实间隔时间
+     */
     private final long retryBackoffMs;
+    /**
+     * 请求超时时间。
+     */
     private final long requestTimeoutMs;
+    /**
+     * 每次获取record的最大数量
+     */
     private final int maxPollRecords;
+    /**
+     *
+     */
     private final boolean checkCrcs;
+    /**
+     * Kafka集群元数据
+     */
     private final Metadata metadata;
+    /**
+     *
+     */
     private final FetchManagerMetrics sensors;
+    /**
+     *
+     */
     private final SubscriptionState subscriptions;
+    /**
+     * 完成请求队列。 每个FeatchResponse --> CompletedFetch 缓存。
+     */
     private final ConcurrentLinkedQueue<CompletedFetch> completedFetches;
     private final BufferSupplier decompressionBufferSupplier = BufferSupplier.create();
+    /**
+     * key解码器
+     */
     private final ExtendedDeserializer<K> keyDeserializer;
+    /**
+     * value 解码器
+     */
     private final ExtendedDeserializer<V> valueDeserializer;
     private final IsolationLevel isolationLevel;
     private final Map<Integer, FetchSessionHandler> sessionHandlers;
     private final AtomicReference<RuntimeException> cachedListOffsetsException = new AtomicReference<>();
-
+    /**
+     * CompletedFetch 解析后的结果
+     */
     private PartitionRecords nextInLineRecords = null;
 
     public Fetcher(LogContext logContext,
@@ -191,6 +236,7 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
      */
     public int sendFetches() {
         Map<Node, FetchSessionHandler.FetchRequestData> fetchRequestMap = prepareFetchRequests();
+
         for (Map.Entry<Node, FetchSessionHandler.FetchRequestData> entry : fetchRequestMap.entrySet()) {
             final Node fetchTarget = entry.getKey();
             final FetchSessionHandler.FetchRequestData data = entry.getValue();

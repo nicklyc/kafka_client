@@ -1,4 +1,4 @@
-package org.example.learn.learn;
+package org.apache.example.learn.learn;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

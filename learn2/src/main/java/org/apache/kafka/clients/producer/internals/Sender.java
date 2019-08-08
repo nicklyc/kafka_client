@@ -247,7 +247,9 @@ public class Sender implements Runnable {
         }
 
         long pollTimeout = sendProducerData(now);
+
         client.poll(pollTimeout, now);
+
     }
 
     private long sendProducerData(long now) {

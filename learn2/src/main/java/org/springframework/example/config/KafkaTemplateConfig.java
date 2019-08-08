@@ -3,7 +3,7 @@ package org.springframework.example.config;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.example.learn2.producer.ProducerConf;
+import org.apache.example.learn2.producer.ProducerConf;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;

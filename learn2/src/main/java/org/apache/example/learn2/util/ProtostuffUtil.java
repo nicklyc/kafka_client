@@ -1,4 +1,4 @@
-package org.example.learn2.util;
+package org.apache.example.learn2.util;
 
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;

@@ -1,6 +1,6 @@
-package org.example.learn2.consumer;
+package org.apache.example.learn2.consumer;
 
-import org.example.learn2.entity.KafkaMessage;
+import org.apache.example.learn2.entity.KafkaMessage;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;

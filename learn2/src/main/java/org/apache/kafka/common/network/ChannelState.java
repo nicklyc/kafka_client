@@ -54,6 +54,10 @@ import org.apache.kafka.common.errors.AuthenticationException;
  * <li>Security misconfiguration with older broker: NOT_CONNECTED => AUTHENTICATE, disconnected in AUTHENTICATE state</li>
  * </ul>
  */
+
+/**
+ *
+ */
 public class ChannelState {
     public enum State {
         NOT_CONNECTED,
@@ -64,7 +68,6 @@ public class ChannelState {
         AUTHENTICATION_FAILED,
         LOCAL_CLOSE
     }
-
     ;
     // AUTHENTICATION_FAILED has a custom exception. For other states,
     // create a reusable `ChannelState` instance per-state.

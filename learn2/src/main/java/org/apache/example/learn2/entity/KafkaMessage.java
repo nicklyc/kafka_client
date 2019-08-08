@@ -1,9 +1,6 @@
-package org.example.learn2.entity;
-
-import com.esotericsoftware.kryo.DefaultSerializer;
+package org.apache.example.learn2.entity;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * 消息对象

@@ -96,18 +96,43 @@ public class Selector implements Selectable, AutoCloseable {
     }
 
     private final Logger log;
+    /**
+     * nioSelector网络读写核心
+     */
     private final java.nio.channels.Selector nioSelector;
+    /**
+     * nodeId-->KafkaChannel,每个node和他的连接通道对应关系
+     * KafkaChannel 持有的是SocketChannel
+     */
     private final Map<String, KafkaChannel> channels;
     private final Set<KafkaChannel> explicitlyMutedChannels;
     private boolean outOfMemory;
+    /**
+     * 完成发送的请求Send
+     */
     private final List<Send> completedSends;
+    /**
+     * 接收到的请求
+     */
     private final List<NetworkReceive> completedReceives;
+    /**
+     * KafkaChannel上读取到的请求
+     */
     private final Map<KafkaChannel, Deque<NetworkReceive>> stagedReceives;
     private final Set<SelectionKey> immediatelyConnectedKeys;
     private final Map<String, KafkaChannel> closingChannels;
     private Set<SelectionKey> keysWithBufferedRead;
+    /**
+     * 断开的连接
+     */
     private final Map<String, ChannelState> disconnected;
+    /**
+     * 新建的连接
+     */
     private final List<String> connected;
+    /**
+     *发送请求失败的nodeId
+     */
     private final List<String> failedSends;
     private final Time time;
     private final SelectorMetrics sensors;
@@ -459,7 +484,9 @@ public class Selector implements Selectable, AutoCloseable {
 
         /* check ready keys */
         long startSelect = time.nanoseconds();
+
         int numReadyKeys = select(timeout);
+
         long endSelect = time.nanoseconds();
         this.sensors.selectTime.record(endSelect - startSelect, time.milliseconds());
 
@@ -496,6 +523,7 @@ public class Selector implements Selectable, AutoCloseable {
         // Add to completedReceives after closing expired connections to avoid removing
         // channels with completed receives until all staged receives are completed.
         addToCompletedReceives();
+
     }
 
     /**

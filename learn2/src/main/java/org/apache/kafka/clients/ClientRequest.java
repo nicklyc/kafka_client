@@ -30,9 +30,15 @@ public final class ClientRequest {
     private final AbstractRequest.Builder<?> requestBuilder;
     private final int correlationId;
     private final String clientId;
+    /**
+     * 请求构造的时间戳
+     */
     private final long createdTimeMs;
     /**需不需要ack*/
     private final boolean expectResponse;
+    /**
+     * 请求超时时间
+     */
     private final int requestTimeoutMs;
 
     private final RequestCompletionHandler callback;

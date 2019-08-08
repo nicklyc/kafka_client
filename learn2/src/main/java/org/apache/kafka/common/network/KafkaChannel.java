@@ -99,6 +99,7 @@ public class KafkaChannel {
     /**
      * 最大读取size，读取消息头中的消息长度大于该值，将会抛出@InvalidReceiveException
      * 详细见@NetworkReceive##readFrom
+     *
      */
     private final int maxReceiveSize;
     /**

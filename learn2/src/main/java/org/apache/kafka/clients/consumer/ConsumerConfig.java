@@ -516,7 +516,13 @@ public class ConsumerConfig extends AbstractConfig {
         return newProperties;
     }
 
+    /**
+     * 初始化配置
+     * @param props  用户配置
+     */
     public ConsumerConfig(Properties props) {
+        //调用父类进行配置初始化
+        //CONFIG  默认配置
         super(CONFIG, props);
     }
 

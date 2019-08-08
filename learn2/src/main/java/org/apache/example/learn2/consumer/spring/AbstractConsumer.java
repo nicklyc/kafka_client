@@ -1,4 +1,4 @@
-package org.example.learn2.consumer.spring;
+package org.apache.example.learn2.consumer.spring;
 
 import java.util.List;
 

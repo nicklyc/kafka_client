@@ -1,15 +1,13 @@
-package org.example.learn2.consumer;
+package org.apache.example.learn2.consumer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.Map;
 
 /**

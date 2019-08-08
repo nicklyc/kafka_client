@@ -1,21 +1,11 @@
-package org.example.learn2.config;
+package org.apache.example.learn2.config;
 
 /**
  * @author maochao
  * @since 2019/8/6 13:42
  */
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
-
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.example.learn2.consumer.ConsumerConf;
-import org.example.learn2.consumer.ProtostuffDerializer;
-import org.example.learn2.producer.ProducerConf;
+import org.apache.example.learn2.consumer.ConsumerConf;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;

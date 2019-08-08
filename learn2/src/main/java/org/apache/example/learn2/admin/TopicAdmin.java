@@ -1,11 +1,9 @@
-package org.example.learn2.admin;
+package org.apache.example.learn2.admin;
 
 import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.clients.producer.ProducerConfig;
 
 import java.util.Arrays;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 /**
  * 操作topic的类

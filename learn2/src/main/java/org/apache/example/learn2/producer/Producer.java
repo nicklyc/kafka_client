@@ -1,12 +1,8 @@
-package org.example.learn2.producer;
+package org.apache.example.learn2.producer;
 
-import org.example.LearnApplication;
-import org.example.learn2.entity.KafkaMessage;
+import org.apache.example.learn2.entity.KafkaMessage;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.ComponentScan;
 
 /**
  * 生产者

@@ -1046,6 +1046,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             //估算消息大小
             int serializedSize = AbstractRecords.estimateSizeInBytesUpperBound(apiVersions.maxUsableProduceMagic(),
                 compressionType, serializedKey, serializedValue, headers);
+           log.info("消息大小===>"+serializedSize);
             // 校验消息数据大小
             ensureValidRecordSize(serializedSize);
             long timestamp = record.timestamp() == null ? time.milliseconds() : record.timestamp();
@@ -1060,6 +1061,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
             // 追加消息到RecordAccumulator缓存
             RecordAccumulator.RecordAppendResult result = accumulator.append(tp, timestamp, serializedKey,
                 serializedValue, headers, interceptCallback, remainingWaitMs);
+            //当RecordAccumulator满了或者新建的batch,唤醒sender线程，进行发送
             if (result.batchIsFull || result.newBatchCreated) {
                 log.trace("Waking up the sender since topic {} partition {} is either full or getting a new batch",
                     record.topic(), partition);

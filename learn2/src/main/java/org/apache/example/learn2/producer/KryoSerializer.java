@@ -1,4 +1,4 @@
-package org.example.learn2.producer;
+package org.apache.example.learn2.producer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;

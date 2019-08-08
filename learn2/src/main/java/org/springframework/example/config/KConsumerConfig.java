@@ -6,7 +6,7 @@ import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.example.learn2.consumer.ConsumerConf;
+import org.apache.example.learn2.consumer.ConsumerConf;
 import org.springframework.example.consumer.ConsumerListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

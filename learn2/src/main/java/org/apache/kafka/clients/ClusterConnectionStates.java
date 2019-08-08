@@ -277,7 +277,7 @@ final class ClusterConnectionStates {
 
     /**
      * Return true if the connection has been disconnected
-     *
+     * 指定node节点状态标记为  DISCONNECTED
      * @param id The id of the node to check
      */
     public boolean isDisconnected(String id) {

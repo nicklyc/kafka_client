@@ -37,12 +37,12 @@ public class ConsumerMetrics {
     }
 
     private List<MetricNameTemplate> getAllTemplates() {
-        List<MetricNameTemplate> l = new ArrayList<>(this.fetcherMetrics.getAllTemplates());
+        List<MetricNameTemplate> l = new ArrayList(this.fetcherMetrics.getAllTemplates());
         return l;
     }
 
     public static void main(String[] args) {
-        Set<String> tags = new HashSet<>();
+        Set<String> tags = new HashSet();
         tags.add("client-id");
         ConsumerMetrics metrics = new ConsumerMetrics(tags, "consumer");
         System.out.println(Metrics.toHtmlTable("kafka.consumer", metrics.getAllTemplates()));

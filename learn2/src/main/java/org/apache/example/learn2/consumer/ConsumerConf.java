@@ -1,4 +1,4 @@
-package org.example.learn2.consumer;
+package org.apache.example.learn2.consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
