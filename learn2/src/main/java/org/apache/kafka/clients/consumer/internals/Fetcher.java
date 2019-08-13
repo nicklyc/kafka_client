@@ -415,12 +415,16 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         if (exception != null)
             throw exception;
 
+        /**
+         * 需要重置的分区
+         */
         Set<TopicPartition> partitions = subscriptions.partitionsNeedingReset(time.milliseconds());
         if (partitions.isEmpty())
             return;
 
         final Map<TopicPartition, Long> offsetResetTimestamps = new HashMap<>();
         for (final TopicPartition partition : partitions) {
+            //
             Long timestamp = offsetResetStrategyTimestamp(partition);
             if (timestamp != null)
                 offsetResetTimestamps.put(partition, timestamp);
@@ -635,6 +639,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         }
     }
 
+    /**
+     * 异步重置offset
+     */
     private void resetOffsetsAsync(Map<TopicPartition, Long> partitionResetTimestamps) {
         // Add the topics to the metadata to do a single metadata fetch.
         for (TopicPartition tp : partitionResetTimestamps.keySet())
@@ -646,7 +653,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
             final Map<TopicPartition, Long> resetTimestamps = entry.getValue();
             subscriptions.setResetPending(resetTimestamps.keySet(), time.milliseconds() + requestTimeoutMs);
 
+            //发送请求
             RequestFuture<ListOffsetResult> future = sendListOffsetRequest(node, resetTimestamps, false);
+
             future.addListener(new RequestFutureListener<ListOffsetResult>() {
                 @Override
                 public void onSuccess(ListOffsetResult result) {
@@ -881,8 +890,13 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         }
     }
 
+    /**
+     * 可以发送FetchRequest的分区
+     * @return
+     */
     private List<TopicPartition> fetchablePartitions() {
         Set<TopicPartition> exclude = new HashSet<>();
+        //可以发送请求的分区
         List<TopicPartition> fetchable = subscriptions.fetchablePartitions();
         if (nextInLineRecords != null && !nextInLineRecords.isFetched) {
             exclude.add(nextInLineRecords.partition);
